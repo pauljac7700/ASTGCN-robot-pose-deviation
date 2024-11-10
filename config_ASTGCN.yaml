@@ -1,0 +1,48 @@
+# config.yaml
+
+# Data preparation settings
+random_seed: 42
+
+# Paths to data files
+data_file: 'data/measurements_random_poses_cleaned.csv'
+train_data_file: 'data/train_data.npz'
+val_data_file: 'data/val_data.npz'
+test_data_file: 'data/test_data.npz'
+scalers_file: 'data/scalers.joblib'
+adjacency_matrix_file: 'data/adjacency_matrix.npy'
+
+# Data splitting ratios
+test_size: 0.20
+val_size: 0.15
+
+# Model hyperparameters
+model:
+  nb_block: 2
+  in_channels: 6
+  K: 3
+  nb_chev_filter: 32 #original 64
+  nb_time_filter: 32 #original 64
+  time_strides: 1
+  num_for_predict: 1
+  len_input: 10
+  num_of_vertices: 8
+  target_dim: 1
+
+# Training hyperparameters
+training:
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  batch_size: 16
+  num_epochs: 50
+  patience: 10
+
+# Device configuration
+device: 'cuda'  # or 'cpu' if GPU is not available
+
+# Logging settings
+logging:
+  log_dir: 'logs'
+  model_save_dir: 'saved_models'
+
+# Other settings
+random_seed: 42
