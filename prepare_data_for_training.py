@@ -43,13 +43,13 @@ def prepare_data(config):
     target_df = df[[target_variable]]
 
     # Split the data into train, validation, and test sets
-    test_size = config.get('test_size', 0.15)
-    val_size = config.get('val_size', 0.15)
+    test_size = config['test_size']
+    val_size = config['val_size']
     train_size = 1 - test_size - val_size
 
     # First split off the test set
     inputs_train_val_df, inputs_test_df, target_train_val_df, target_test_df = train_test_split(
-        inputs_df, target_df, test_size=test_size, random_state=config['random_seed'], shuffle=True)
+        inputs_df, target_df, test_size=test_size, random_state=config['random_seed'], shuffle=False)
 
     # Then split train and validation sets
     val_size_adjusted = val_size / (train_size + val_size)
