@@ -16,7 +16,7 @@ from lib.metrics import masked_mape_np,  masked_mae,masked_mse,masked_rmse
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", default='configurations/METR_LA_astgcn.conf', type=str,
+parser.add_argument("--config", default='configurations/PEMS08_astgcn.conf', type=str,
                     help="configuration file path")
 args = parser.parse_args()
 config = configparser.ConfigParser()
@@ -43,7 +43,7 @@ model_name = training_config['model_name']
 ctx = training_config['ctx']
 os.environ["CUDA_VISIBLE_DEVICES"] = ctx
 USE_CUDA = torch.cuda.is_available()
-DEVICE = torch.device('cuda:0')
+DEVICE = torch.device('cpu')
 print("CUDA:", USE_CUDA, DEVICE)
 
 learning_rate = float(training_config['learning_rate'])
@@ -226,7 +226,7 @@ if __name__ == "__main__":
 
     train_main()
 
-    # predict_main(13, test_loader, test_target_tensor,metric_method, _mean, _std, 'test')
+    #predict_main(4, test_loader, test_target_tensor,metric_method, _mean, _std, 'test')
 
 
 
