@@ -2,7 +2,7 @@
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error, r2_score
 import joblib
 
 
@@ -52,9 +52,11 @@ targets_test_inverse = target_scaler.inverse_transform(targets_test)
 # Evaluate the model
 mse = mean_squared_error(targets_test_inverse, predictions)
 mape = mean_absolute_percentage_error(targets_test_inverse, predictions) * 100
+r2 = r2_score(targets_test_inverse, predictions)
 
 print(f"Linear Regression Test MSE: {mse:.4f}")
 print(f"Linear Regression Test MAPE: {mape:.4f}%")
+print(f"Linear Regression Test R2: {r2:.4f}%")
 
 # Detailed summary
 import matplotlib.pyplot as plt

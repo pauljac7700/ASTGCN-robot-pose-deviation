@@ -1,76 +1,114 @@
-# ASTGCN
+# ASTGCN for Robotic System Error Prediction
 
-Attention Based Spatial-Temporal Graph Convolutional Networks for Traffic Flow Forecasting (ASTGCN)
+## Table of Contents
+- [Introduction](#introduction)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Data Preparation](#data-preparation)
+- [Building the Graph](#building-the-graph)
+- [Training the Model](#training-the-model)
+- [Evaluation](#evaluation)
+- [Logging and Visualization](#logging-and-visualization)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-<img src="fig/ASTGCN architecture.png" alt="image-20200103164326338" style="zoom:50%;" />
+## Introduction
+This project implements an **Attention-based Spatial-Temporal Graph Convolutional Network (ASTGCN)** for predicting errors in robotic systems. It uses graph neural networks and attention mechanisms to model spatial and temporal dependencies.
 
-This is a Pytorch implementation of ASTGCN and MSTCGN. The pytorch version of ASTGCN released here only consists of the  recent component, since the other two components have the same network architecture. 
+## Features
+- Spatial and Temporal Attention
+- Modular and Configurable Design
+- Comprehensive Logging with TensorBoard
+- Reproducibility with fixed random seeds
 
-# Reference
+## Architecture
+The ASTGCN model consists of:
+1. **Graph Construction:** Builds an adjacency matrix for the robotic system.
+2. **Data Preparation:** Processes and scales sensor data.
+3. **Attention Layers:** Captures correlations between nodes and time steps.
+4. **Chebyshev Graph Convolution:** K-order polynomials for graph convolution.
+5. **ASTGCN Blocks:** Stacks multiple blocks for spatial-temporal modeling.
+6. **Prediction Layer:** Outputs future predictions based on input sequences.
 
-```latex
-@inproceedings{guo2019attention,
-  title={Attention based spatial-temporal graph convolutional networks for traffic flow forecasting},
-  author={Guo, Shengnan and Lin, Youfang and Feng, Ning and Song, Chao and Wan, Huaiyu},
-  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
-  volume={33},
-  pages={922--929},
-  year={2019}
-}
+## Installation
+### Prerequisites
+- Python 3.7+
+- CUDA (for GPU support)
+
+### Clone the Repository
+```bash
+git clone https://github.com/your-username/astgcn-robotic-error-prediction.git
+cd astgcn-robotic-error-prediction
 ```
 
-# Configuration
+### Install Dependencies
+```bash
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-Step 1: The loss function and metrics can be set in the configuration file in ./configurations
+## Configuration
+Adjust settings in `config.yaml` for data paths, model parameters, and training settings.
 
-Step 2: The last three lines of the configuration file are as follows:
+## Data Preparation
+Run `prep_data.py` to process raw data into training, validation, and test sets.
 
-  ```c++
-  loss_function = masked_mae
-  metric_method = mask
-  missing_value = 0.0
-  ```
+```bash
+python prep_data.py
+```
 
-loss_function can choose 'masked_mae',  'masked_mse',  'mae',  'mse'. The loss function with a mask does not consider  missing values.
+## Building the Graph
+Construct the adjacency matrix with `build_graph.py`:
+```bash
+python build_graph.py
+```
+The graph structure is saved to `data/adjacency_matrix.npy`.
 
-metric_method can choose 'mask', 'unmask'. The metric with a mask does not evaluate missing values.
+## Training the Model
+Train the model with `train.py`:
+```bash
+python train.py
+```
+Adjust hyperparameters in `config.yaml`.
 
-The missing_value is the missing identification, whose default value is 0.0
+## Evaluation
+Evaluate the trained model on test data using `test.py`, which computes metrics such as MSE and MAE.
 
-# Datasets
+### Running Evaluation
+To evaluate the model using `test.py`, ensure that `config.yaml` and your saved model checkpoint are correctly set up, and then run:
+```bash
+python test.py
+```
 
-Step 1: Download PEMS04 and PEMS08 datasets provided by [ASTGNN](https://github.com/guoshnBJTU/ASTGNN/tree/main/data). 
+## Logging and Visualization
+Run TensorBoard to view training logs:
+```bash
+tensorboard --logdir=logs
+```
 
-Step 2: Process dataset
+## Usage
+To make predictions on new data:
+1. Load and preprocess your input sequence.
+2. Use the trained model to generate predictions.
 
-- on PEMS04 dataset
+## Contributing
+1. Fork the Repository
+2. Create a Feature Branch
+3. Commit Your Changes
+4. Push to the Branch
+5. Open a Pull Request
 
-  ```shell
-  python prepareData.py --config configurations/PEMS04_astgcn.conf
-  ```
+## License
+This project is licensed under the MIT License.
 
-- on PEMS08 dataset
-
-  ```shell
-  python prepareData.py --config configurations/PEMS08_astgcn.conf
-  ```
-
-
-
-# Train and Test
-
-- on PEMS04 dataset
-
-  ```shell
-  python train_ASTGCN_r.py --config configurations/PEMS04_astgcn.conf
-  ```
-
-- on PEMS08 dataset
-
-  ```shell
-  python train_ASTGCN_r.py --config configurations/PEMS08_astgcn.conf
-  ```
-
+## Contact
+For any questions or suggestions:
+- **Email:** paul.jacobi@rwth-aachen.de
   
 
   
