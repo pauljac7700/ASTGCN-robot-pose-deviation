@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import numpy as np
 import yaml
-from model.orig_ASTGCN_r import make_model
+from multiple_outputs.ASTGCN_multi import make_model
 import joblib
 
 def train_model(config):
@@ -62,7 +62,8 @@ def train_model(config):
         adj_mx=adj_mx,
         num_for_predict=config['model']['num_for_predict'],
         len_input=config['model']['len_input'],
-        num_of_vertices=config['model']['num_of_vertices']
+        num_of_vertices=config['model']['num_of_vertices'],
+        target_dim=config['model']['target_dim']
     )
     model.to(DEVICE)
 
@@ -101,11 +102,11 @@ def train_model(config):
             outputs = model(inputs_batch)  # Shape: (batch_size, N, num_for_predict, target_dim)
 
             # Extract outputs for the end-effector node (Node 6)
-            outputs_end_effector = outputs[:, 6, :]  # Shape: (batch_size, T_out)
+            outputs_end_effector = outputs[:, 6, :, :]  # Shape: (batch_size, num_for_predict, target_dim)
 
-            # Flatten outputs and targets if necessary
-            outputs_flat = outputs_end_effector  # Shape: (batch_size, T_out)
-            targets_flat = targets_batch.view(targets_batch.size(0), -1)  # Shape: (batch_size, T_out)
+            # Flatten outputs and targets
+            outputs_flat = outputs_end_effector.view(outputs_end_effector.size(0), -1)  # Shape: (batch_size, num_for_predict * target_dim)
+            targets_flat = targets_batch.view(targets_batch.size(0), -1)  # Shape: (batch_size, num_for_predict * target_dim)
 
             # Compute loss
             loss = criterion(outputs_flat, targets_flat)
@@ -129,12 +130,11 @@ def train_model(config):
                 targets_batch = targets_batch.to(DEVICE)
 
                 outputs = model(inputs_batch)
-                # Extract outputs for the end-effector node (Node 6)
-                outputs_end_effector = outputs[:, 6, :]  # Shape: (batch_size, T_out)
+                outputs_end_effector = outputs[:, 6, :, :]  # Shape: (batch_size, num_for_predict, target_dim)
 
-                # Flatten outputs and targets if necessary
-                outputs_flat = outputs_end_effector  # Shape: (batch_size, T_out)
-                targets_flat = targets_batch.view(targets_batch.size(0), -1)  # Shape: (batch_size, T_out)
+                # Flatten outputs and targets
+                outputs_flat = outputs_end_effector.view(outputs_end_effector.size(0), -1)  # Shape: (batch_size, num_for_predict * target_dim)
+                targets_flat = targets_batch.view(targets_batch.size(0), -1)  # Shape: (batch_size, num_for_predict * target_dim)
 
                 # Compute loss
                 loss = criterion(outputs_flat, targets_flat)

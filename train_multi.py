@@ -1,4 +1,4 @@
-# train.py
+# train_multi.py
 
 import os
 import torch
@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import numpy as np
 import yaml
-from model.adjusted_ASTGCN import make_model
+from model.ASTGCN_multi import make_model
 import joblib
 
 def train_model(config):
@@ -21,8 +21,8 @@ def train_model(config):
     # Load datasets
     train_data = np.load(config['train_data_file'])
     val_data = np.load(config['val_data_file'])
-    inputs_train = train_data['inputs']
-    targets_train = train_data['targets']
+    inputs_train = train_data['inputs']  # Shape: (num_samples, num_nodes, in_channels, len_input + 1)
+    targets_train = train_data['targets']  # Shape: (num_samples, num_targets)
     inputs_val = val_data['inputs']
     targets_val = val_data['targets']
 
@@ -46,9 +46,14 @@ def train_model(config):
 
     # Load adjacency matrix
     adj_mx = np.load(config['adjacency_matrix_file'])
+    # Do NOT convert adj_mx to a PyTorch tensor here
+    # Keep it as a NumPy array to be compatible with utils.py functions
 
     # Device configuration
     DEVICE = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
+
+    # Number of targets
+    num_targets = len(config['target_variables'])
 
     # Initialize model
     model = make_model(
@@ -59,11 +64,11 @@ def train_model(config):
         nb_chev_filter=config['model']['nb_chev_filter'],
         nb_time_filter=config['model']['nb_time_filter'],
         time_strides=config['model']['time_strides'],
-        adj_mx=adj_mx,
+        adj_mx=adj_mx,  # Pass the adjacency matrix as a NumPy array
         num_for_predict=config['model']['num_for_predict'],
-        len_input=config['model']['len_input'],
+        len_input=config['model']['len_input'] + 1,  # Adjusted for extended input sequence
         num_of_vertices=config['model']['num_of_vertices'],
-        target_dim=config['model']['target_dim']
+        target_dim=num_targets  # Pass the number of target variables
     )
     model.to(DEVICE)
 
@@ -99,17 +104,16 @@ def train_model(config):
             optimizer.zero_grad()
 
             # Forward pass
-            outputs = model(inputs_batch)  # Shape: (batch_size, N, num_for_predict, target_dim)
+            outputs = model(inputs_batch)  # Shape: (batch_size, num_nodes, num_for_predict, target_dim)
 
-            # Extract outputs for the end-effector node (Node 6)
-            outputs_end_effector = outputs[:, 6, :, :]  # Shape: (batch_size, num_for_predict, target_dim)
+            # Extract outputs for Node 7 (Error Node)
+            outputs_node7 = outputs[:, 7, :, :]  # Shape: (batch_size, num_for_predict, target_dim)
 
-            # Flatten outputs and targets
-            outputs_flat = outputs_end_effector.view(outputs_end_effector.size(0), -1)  # Shape: (batch_size, num_for_predict * target_dim)
-            targets_flat = targets_batch.view(targets_batch.size(0), -1)  # Shape: (batch_size, num_for_predict * target_dim)
+            # If num_for_predict == 1, squeeze the num_for_predict dimension
+            outputs_node7 = outputs_node7.squeeze(1)  # Shape: (batch_size, target_dim)
 
             # Compute loss
-            loss = criterion(outputs_flat, targets_flat)
+            loss = criterion(outputs_node7, targets_batch)
 
             # Backward pass and optimization
             loss.backward()
@@ -117,7 +121,7 @@ def train_model(config):
 
             # Accumulate training loss
             train_loss += loss.item() * inputs_batch.size(0)
-            
+
         # Calculate average training loss for the epoch
         train_loss /= len(train_loader.dataset)
 
@@ -129,15 +133,11 @@ def train_model(config):
                 inputs_batch = inputs_batch.to(DEVICE)
                 targets_batch = targets_batch.to(DEVICE)
 
-                outputs = model(inputs_batch)
-                outputs_end_effector = outputs[:, 6, :, :]  # Shape: (batch_size, num_for_predict, target_dim)
-
-                # Flatten outputs and targets
-                outputs_flat = outputs_end_effector.view(outputs_end_effector.size(0), -1)  # Shape: (batch_size, num_for_predict * target_dim)
-                targets_flat = targets_batch.view(targets_batch.size(0), -1)  # Shape: (batch_size, num_for_predict * target_dim)
+                outputs = model(inputs_batch)  # Shape: (batch_size, num_nodes, num_for_predict, target_dim)
+                outputs_node7 = outputs[:, 7, :, :].squeeze(1)  # Shape: (batch_size, target_dim)
 
                 # Compute loss
-                loss = criterion(outputs_flat, targets_flat)
+                loss = criterion(outputs_node7, targets_batch)
                 val_loss += loss.item() * inputs_batch.size(0)
         val_loss /= len(val_loader.dataset)
 
@@ -151,7 +151,7 @@ def train_model(config):
             epochs_no_improve = 0
 
             # Save the best model
-            model_name = f"astgcn_best_{current_time}.pth"
+            model_name = f"astgcn_multi_best_{current_time}.pth"
             save_path = os.path.join(model_save_dir, model_name)
             torch.save({
                 'epoch': epoch + 1,

@@ -1,4 +1,4 @@
-# prepare_data.py
+# data_prep.py
 
 import numpy as np
 import pandas as pd
@@ -8,31 +8,24 @@ from sklearn.model_selection import train_test_split
 import yaml
 
 def prepare_data(config):
-    # Load the data
-    data_file = config['data_file']
-    df = pd.read_csv(data_file)
-    print(f"Data loaded from {data_file}")
-    print(f"Dataset shape: {df.shape}")
+    # Load data
+    df = pd.read_csv(config['data_file'])
 
-    # Drop 'step_order' if it's just an index
-    if 'step_order' in df.columns:
-        df = df.drop(columns=['step_order'])
-
-    # Check for missing values and drop rows with missing values
-    if df.isnull().sum().any():
-        print("Dropping rows with missing values.")
+    # Drop unnecessary columns and check for missing values
+    df = df.drop(columns=['step_order'], errors='ignore')
+    if df.isnull().values.any():
         df = df.dropna()
-        print(f"New dataset shape after dropping missing values: {df.shape}")
 
     # Define input features and target variable
-    target_variable = 'x_dif'
-    joint_features = [f'joint_{i}' for i in range(1, 7)]  # Joint_1 to Joint_6
+    target_variable = 'rz_dif'  # The target variable remains the same
+    joint_features = [f'joint_{i}' for i in range(1, 7)]
     setpoint_features = ['x_set', 'y_set', 'z_set', 'rx_set', 'ry_set', 'rz_set']
 
-    # Include 'x_dif' in the input features to use its historical values
+    # Include 'x_dif' in input features
     input_features = joint_features + setpoint_features + [target_variable]
 
-    required_columns = input_features
+    # Ensure all required columns are present
+    required_columns = input_features + [target_variable]
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         print(f"The following required columns are missing from the dataset: {missing_columns}")
@@ -51,10 +44,10 @@ def prepare_data(config):
     inputs_train_val_df, inputs_test_df, target_train_val_df, target_test_df = train_test_split(
         inputs_df, target_df, test_size=test_size, random_state=config['random_seed'], shuffle=False)
 
-    # Then split train and validation sets
+    # Then split train and validation sets without shuffling to prevent data leakage
     val_size_adjusted = val_size / (train_size + val_size)
     inputs_train_df, inputs_val_df, target_train_df, target_val_df = train_test_split(
-        inputs_train_val_df, target_train_val_df, test_size=val_size_adjusted, random_state=config['random_seed'], shuffle=True)
+        inputs_train_val_df, target_train_val_df, test_size=val_size_adjusted, random_state=config['random_seed'], shuffle=False)
 
     print(f"Training set size: {inputs_train_df.shape[0]}")
     print(f"Validation set size: {inputs_val_df.shape[0]}")
@@ -74,11 +67,13 @@ def prepare_data(config):
         # Save the scaler
         input_scalers[feature] = scaler
 
-    # Scale the target variable (already included in inputs)
-    # Fit on NumPy array
+    # Scale the target variable
     target_scaler = StandardScaler()
     target_scaler.fit(target_train_df[[target_variable]].values)
-    # We will transform targets during sequence creation
+    # Transform the target data
+    target_train_df[target_variable] = target_scaler.transform(target_train_df[[target_variable]].values)
+    target_val_df[target_variable] = target_scaler.transform(target_val_df[[target_variable]].values)
+    target_test_df[target_variable] = target_scaler.transform(target_test_df[[target_variable]].values)
 
     # Save the scalers
     scalers = {'input_scalers': input_scalers, 'target_scaler': target_scaler}
@@ -90,13 +85,13 @@ def prepare_data(config):
         inputs_raw = inputs_df.values
         targets_raw = target_df.values
 
-        len_input = config['model']['len_input']  # Sequence length for inputs
-        num_for_predict = config['model']['num_for_predict']  # Number of time steps to predict
-        num_nodes = config['model']['num_of_vertices']  # Updated to 8 nodes
-        in_channels = config['model']['in_channels'] 
+        len_input = config['model']['len_input']  # Sequence length for inputs (e.g., 10)
+        num_for_predict = config['model']['num_for_predict']  # Should be set to 1
+        num_nodes = config['model']['num_of_vertices']  # Should be 8 nodes
+        in_channels = config['model']['in_channels']  # Should remain at 6
 
         # Ensure there are enough samples
-        total_samples = inputs_raw.shape[0] - len_input - num_for_predict + 1
+        total_samples = inputs_raw.shape[0] - (len_input + 1) + 1
         if total_samples <= 0:
             print("Not enough data to create sequences.")
             return None, None
@@ -107,42 +102,49 @@ def prepare_data(config):
         # Get indices for features
         joint_indices = [inputs_df.columns.get_loc(f) for f in joint_features]
         setpoint_indices = [inputs_df.columns.get_loc(f) for f in setpoint_features]
-        x_dif_index = inputs_df.columns.get_loc(target_variable)
+        x_dif_index = inputs_df.columns.get_loc(target_variable)  # Index for 'x_dif'
 
         for i in range(total_samples):
-            input_sequence = np.zeros((len_input, num_nodes, in_channels))
+            # Initialize input sequence with zeros
+            input_sequence = np.zeros((len_input + 1, num_nodes, in_channels))
 
-            for t in range(len_input):
+            for t in range(len_input + 1):  # Includes time t + 1
                 idx = i + t
 
                 # Nodes 0-5: Joint positions
                 joint_positions = inputs_raw[idx, joint_indices]  # Shape: (6,)
                 # Node 6: End-effector setpoints
                 end_effector_setpoints = inputs_raw[idx, setpoint_indices]  # Shape: (6,)
-                # Node 7: Error node (`x_dif`)
-                x_dif_value = inputs_raw[idx, x_dif_index]  # Scalar
+                # Node 7: Error node ('x_dif')
+                if t < len_input:
+                    x_dif_value = inputs_raw[idx, x_dif_index]  # Use past 'x_dif' values
+                else:
+                    x_dif_value = 0  # At time t + 1, set 'x_dif' to zero to avoid data leakage
 
                 # Assign features
-                for node_idx in range(6):  # Nodes 0-5 (Joint nodes)
+                # Nodes 0-5 (Joint nodes)
+                for node_idx in range(6):
                     input_sequence[t, node_idx, 0] = joint_positions[node_idx]
-                # Node 6: End-effector input node
-                input_sequence[t, 6, :6] = end_effector_setpoints
-                # Node 7: Error node
-                input_sequence[t, 7, 0] = x_dif_value
+                    # The remaining feature indices (1-5) are already zero
 
-            # Transpose to (num_nodes=8, in_channels=6, len_input)
+                # Node 6: End-effector input node
+                input_sequence[t, 6, :6] = end_effector_setpoints  # Assign all 6 features
+
+                # Node 7: Error node ('x_dif')
+                input_sequence[t, 7, 0] = x_dif_value
+                # The remaining feature indices (1-5) are already zero
+
+            # Transpose to (num_nodes=8, in_channels=6, len_input + 1)
             input_sequence = input_sequence.transpose(1, 2, 0)
             inputs.append(input_sequence)
 
-            # Target value (`x_dif` at future time step)
-            target_idx = i + len_input + num_for_predict - 1
+            # Target value ('x_dif' at time t + 1)
+            target_idx = i + len_input  # Adjusted to get target at t + 1
             target_value = targets_raw[target_idx]
-            # Transform the target using the target scaler
-            target_value_scaled = target_scaler.transform(target_value.reshape(-1, 1))
-            targets.append(target_value_scaled[0])
+            targets.append(target_value[0])
 
-        inputs = np.array(inputs)  # Shape: (num_samples, num_nodes=8, in_channels=6, len_input)
-        targets = np.array(targets)  # Shape: (num_samples, 1)
+        inputs = np.array(inputs)  # Shape: (num_samples, num_nodes=8, in_channels=6, len_input + 1)
+        targets = np.array(targets)  # Shape: (num_samples,)
 
         return inputs, targets
 
