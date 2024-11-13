@@ -15,6 +15,15 @@ adjacency_matrix_file: 'data/adjacency_matrix.npy'
 test_size: 0.20
 val_size: 0.15
 
+# Target variables
+target_variables:
+  - x_dif
+  - y_dif
+  - z_dif
+  - rx_dif
+  - ry_dif
+  - rz_dif
+
 # Model hyperparameters
 model:
   nb_block: 2
@@ -43,6 +52,8 @@ device: 'cuda'  # or 'cpu' if GPU is not available
 logging:
   log_dir: 'logs'
   model_save_dir: 'saved_models'
+  results_single_dir: 'results/results_single'
+  results_multi_dir: 'results/results_multi'
 
 # Other settings
 random_seed: 42
