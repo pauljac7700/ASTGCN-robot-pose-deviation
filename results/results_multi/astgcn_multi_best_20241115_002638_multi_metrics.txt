@@ -1,0 +1,49 @@
+Test Results:
+Metrics for x_dif:
+  Mean Squared Error (MSE): 0.000451
+  Root Mean Squared Error (RMSE): 0.021227
+  Mean Absolute Error (MAE): 0.016269
+  Mean Absolute Percentage Error (MAPE): 28.497040%
+  R-squared (R²): 0.991101
+
+Metrics for y_dif:
+  Mean Squared Error (MSE): 0.000213
+  Root Mean Squared Error (RMSE): 0.014601
+  Mean Absolute Error (MAE): 0.011182
+  Mean Absolute Percentage Error (MAPE): 1.852021%
+  R-squared (R²): 0.989843
+
+Metrics for z_dif:
+  Mean Squared Error (MSE): 0.000211
+  Root Mean Squared Error (RMSE): 0.014514
+  Mean Absolute Error (MAE): 0.011615
+  Mean Absolute Percentage Error (MAPE): 1.205514%
+  R-squared (R²): 0.988779
+
+Metrics for rx_dif:
+  Mean Squared Error (MSE): 0.004160
+  Root Mean Squared Error (RMSE): 0.064495
+  Mean Absolute Error (MAE): 0.049307
+  Mean Absolute Percentage Error (MAPE): 1.520494%
+  R-squared (R²): 0.947217
+
+Metrics for ry_dif:
+  Mean Squared Error (MSE): 0.000386
+  Root Mean Squared Error (RMSE): 0.019641
+  Mean Absolute Error (MAE): 0.014996
+  Mean Absolute Percentage Error (MAPE): 0.975644%
+  R-squared (R²): 0.989818
+
+Metrics for rz_dif:
+  Mean Squared Error (MSE): 0.003034
+  Root Mean Squared Error (RMSE): 0.055079
+  Mean Absolute Error (MAE): 0.040623
+  Mean Absolute Percentage Error (MAPE): 2.622603%
+  R-squared (R²): 0.699440
+
+Mean Metrics over all target variables:
+  Mean Squared Error (MSE): 0.001409
+  Root Mean Squared Error (RMSE): 0.031593
+  Mean Absolute Error (MAE): 0.023999
+  Mean Absolute Percentage Error (MAPE): 6.112219%
+  R-squared (R²): 0.934366

@@ -39,7 +39,7 @@ def build_adjacency_matrix(config):
 
 if __name__ == "__main__":
     # Load configuration
-    with open('config.yaml') as f:
+    with open('config_ASTGCN.yaml') as f:
         config = yaml.safe_load(f)
     
     adj_matrix = build_adjacency_matrix(config)

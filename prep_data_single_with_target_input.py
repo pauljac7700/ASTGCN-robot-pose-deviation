@@ -17,7 +17,7 @@ def prepare_data(config):
         df = df.dropna()
 
     # Define input features and target variable
-    target_variable = 'rz_dif'  # The target variable remains the same
+    target_variable = 'x_dif'  # The target variable remains the same
     joint_features = [f'joint_{i}' for i in range(1, 7)]
     setpoint_features = ['x_set', 'y_set', 'z_set', 'rx_set', 'ry_set', 'rz_set']
 
