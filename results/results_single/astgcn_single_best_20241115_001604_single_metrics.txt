@@ -1,0 +1,6 @@
+Test Results:
+Mean Squared Error (MSE): 0.0000
+Root Mean Squared Error (RMSE): 0.0040
+Mean Absolute Error (MAE): 0.0032
+Mean Absolute Percentage Error (MAPE): 7.2637%
+R-squared (R²): 0.9997
