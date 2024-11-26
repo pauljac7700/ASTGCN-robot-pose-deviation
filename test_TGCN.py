@@ -1,10 +1,10 @@
-# test_multi.py
+# test_TGCN.py
 
 import os
 import torch
 import numpy as np
 import yaml
-from model.ASTGCN_multi import make_model
+from model.TGCN import TGCNWithGlobalOutput  # Ensure this imports your TGCN module
 import joblib
 from lib.evaluation_metrics import masked_mape, masked_mse, masked_mae, masked_r2_score
 import matplotlib.pyplot as plt
@@ -12,11 +12,12 @@ import matplotlib.pyplot as plt
 def test_model(config):
     # Load test data
     test_data = np.load(config['test_data_file'])
-    inputs_test = test_data['inputs']  # Shape: (num_samples, num_nodes, in_channels, len_input + 1)
+    inputs_test = test_data['inputs']  # Shape: (num_samples, num_nodes=8, in_channels=6, seq_len)
     targets_test = test_data['targets']  # Shape: (num_samples, num_targets)
 
     # Convert to PyTorch tensors
-    inputs_tensor = torch.from_numpy(inputs_test).float()
+    # TGCN expects inputs of shape (batch_size, seq_len, num_nodes, in_channels)
+    inputs_tensor = torch.from_numpy(inputs_test.transpose(0, 3, 1, 2)).float()
     targets_tensor = torch.from_numpy(targets_test).float()
 
     # Device configuration
@@ -24,31 +25,16 @@ def test_model(config):
 
     # Load adjacency matrix
     adj_mx = np.load(config['adjacency_matrix_file'])
-    # Do NOT convert adj_mx to a PyTorch tensor here; keep it as a NumPy array
-
-    # Number of targets
-    num_targets = len(config['target_variables'])
 
     # Initialize model
-    model = make_model(
-        DEVICE=DEVICE,
-        nb_block=config['model']['nb_block'],
-        in_channels=config['model']['in_channels'],
-        K=config['model']['K'],
-        nb_chev_filter=config['model']['nb_chev_filter'],
-        nb_time_filter=config['model']['nb_time_filter'],
-        time_strides=config['model']['time_strides'],
-        adj_mx=adj_mx,  # Pass the adjacency matrix as a NumPy array
-        num_for_predict=config['model']['num_for_predict'],
-        len_input=config['model']['len_input'] + 1,  # Adjusted for extended input sequence
-        num_of_vertices=config['model']['num_of_vertices'],
-        target_dim=num_targets  # Pass the number of target variables
-    )
-    model.to(DEVICE)
+    in_channels = config['model']['in_channels']  # Should be 6
+    hidden_dim = config['model']['hidden_dim']
+    tgcn_model = TGCNWithGlobalOutput(adj=adj_mx, in_channels=in_channels, hidden_dim=hidden_dim)
+    tgcn_model.to(DEVICE)
 
     # Load the best saved model
-    model_save_dir = os.path.join(config['logging']['model_save_dir'], 'ASTGCN_multi')
-    model_files = [f for f in os.listdir(model_save_dir) if f.startswith('astgcn_multi_best_') and f.endswith('.pth')]
+    model_save_dir = config['logging']['model_save_dir']
+    model_files = [f for f in os.listdir(model_save_dir) if f.startswith('tgcn_best_') and f.endswith('.pth')]
     if not model_files:
         raise FileNotFoundError("No saved model found in the specified directory.")
     else:
@@ -57,32 +43,32 @@ def test_model(config):
         model_name = model_files[-1]
     model_path = os.path.join(model_save_dir, model_name)
     checkpoint = torch.load(model_path, map_location=DEVICE)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    tgcn_model.load_state_dict(checkpoint['tgcn_state_dict'])
     print(f"Loaded model from {model_path}")
 
-    model.eval()
+    tgcn_model.eval()
 
     # Make predictions
     with torch.no_grad():
         inputs_tensor = inputs_tensor.to(DEVICE)
         targets_tensor = targets_tensor.to(DEVICE)
 
-        outputs = model(inputs_tensor)  # Shape: (num_samples, num_nodes, num_for_predict, target_dim)
-
-        # Extract outputs for Node 7
-        outputs_node7 = outputs[:, 7, :, :].squeeze(1)  # Shape: (num_samples, target_dim)
+        outputs = tgcn_model(inputs_tensor)  # Outputs shape: (num_samples, num_targets)
 
     # Inverse transform the predictions and targets
     scalers = joblib.load(config['scalers_file'])
     target_scalers = scalers['target_scalers']
 
-    outputs_np = outputs_node7.cpu().numpy()
+    outputs_np = outputs.cpu().numpy()
     targets_np = targets_tensor.cpu().numpy()
 
     outputs_inverse = np.zeros_like(outputs_np)
     targets_inverse = np.zeros_like(targets_np)
 
-    for idx, target_var in enumerate(config['target_variables']):
+    # Ensure target_variables are defined
+    target_variables = ['x_dif', 'y_dif', 'z_dif', 'rx_dif', 'ry_dif', 'rz_dif']
+
+    for idx, target_var in enumerate(target_variables):
         scaler = target_scalers[target_var]
         outputs_inverse[:, idx] = scaler.inverse_transform(outputs_np[:, idx].reshape(-1, 1)).reshape(-1)
         targets_inverse[:, idx] = scaler.inverse_transform(targets_np[:, idx].reshape(-1, 1)).reshape(-1)
@@ -95,7 +81,7 @@ def test_model(config):
     mape_list = []
     r2_list = []
     residuals_dict = {}  # To store residuals for each target variable
-    for idx, target_var in enumerate(config['target_variables']):
+    for idx, target_var in enumerate(target_variables):
         mse = masked_mse(outputs_inverse[:, idx], targets_inverse[:, idx], null_val=0)
         rmse = np.sqrt(mse)
         mape = masked_mape(outputs_inverse[:, idx], targets_inverse[:, idx], null_val=0)
@@ -142,7 +128,7 @@ def test_model(config):
     # Save results and plots
 
     # Create results directory if it doesn't exist
-    results_dir = config['logging']['results_multi_dir']
+    results_dir = config['logging']['results_dir']
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
@@ -154,11 +140,11 @@ def test_model(config):
     if not os.path.isdir(model_results_dir):
         os.makedirs(model_results_dir)
 
-    num_targets = len(config['target_variables'])
+    num_targets = len(target_variables)
 
     # Time Series Plot
     plt.figure(figsize=(12, 6 * num_targets))
-    for idx, target_var in enumerate(config['target_variables']):
+    for idx, target_var in enumerate(target_variables):
         plt.subplot(num_targets, 1, idx + 1)
         plt.plot(targets_inverse[:, idx], label='Actual')
         plt.plot(outputs_inverse[:, idx], label='Predicted')
@@ -175,7 +161,7 @@ def test_model(config):
     print(f"Time series plots saved to {plot_path}")
 
     # Scatter Plots and Residual Plots
-    for idx, target_var in enumerate(config['target_variables']):
+    for idx, target_var in enumerate(target_variables):
         # Scatter Plot
         plt.figure(figsize=(6, 6))
         plt.scatter(targets_inverse[:, idx], outputs_inverse[:, idx], alpha=0.5)
@@ -243,7 +229,7 @@ def test_model(config):
 
 if __name__ == "__main__":
     # Load configuration
-    with open('config_ASTGCN.yaml') as f:
+    with open('config_TGCN.yaml') as f:
         config = yaml.safe_load(f)
 
     test_model(config)

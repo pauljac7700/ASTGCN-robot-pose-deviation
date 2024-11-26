@@ -15,7 +15,7 @@ adjacency_matrix_file: 'data/adjacency_matrix.npy'
 test_size: 0.20
 val_size: 0.15
 
-# Target variables
+# Target variables for multi
 target_variables:
   - x_dif
   - y_dif
@@ -23,6 +23,9 @@ target_variables:
   - rx_dif
   - ry_dif
   - rz_dif
+
+# single target variable:
+single_target_variable: 'rz_dif'
 
 # Model hyperparameters
 model:
@@ -35,7 +38,6 @@ model:
   num_for_predict: 1
   len_input: 10
   num_of_vertices: 8
-  target_dim: 1
 
 # Training hyperparameters
 training:
@@ -50,10 +52,11 @@ device: 'cuda'  # or 'cpu' if GPU is not available
 
 # Logging settings
 logging:
-  log_dir: 'logs'
+  log_single_dir: 'logs/ASTGCN_single'
+  log_multi_dir: 'logs/ASTGCN_multi'
   model_save_dir: 'saved_models'
-  results_single_dir: 'results/results_single'
-  results_multi_dir: 'results/results_multi'
+  results_single_dir: 'results/ASTGCN_single'
+  results_multi_dir: 'results/ASTGCN_multi'
 
 # Other settings
 random_seed: 42
