@@ -7,6 +7,7 @@ import yaml
 from model.ASTGCN_multi import make_model
 import joblib
 from lib.evaluation_metrics import masked_mape, masked_mse, masked_mae, masked_r2_score
+import matplotlib.pyplot as plt
 
 def test_model(config):
     # Load test data
@@ -46,7 +47,7 @@ def test_model(config):
     model.to(DEVICE)
 
     # Load the best saved model
-    model_save_dir = config['logging']['model_save_dir']
+    model_save_dir = os.path.join(config['logging']['model_save_dir'], 'ASTGCN_multi')
     model_files = [f for f in os.listdir(model_save_dir) if f.startswith('astgcn_multi_best_') and f.endswith('.pth')]
     if not model_files:
         raise FileNotFoundError("No saved model found in the specified directory.")
@@ -93,6 +94,7 @@ def test_model(config):
     mae_list = []
     mape_list = []
     r2_list = []
+    residuals_dict = {}  # To store residuals for each target variable
     for idx, target_var in enumerate(config['target_variables']):
         mse = masked_mse(outputs_inverse[:, idx], targets_inverse[:, idx], null_val=0)
         rmse = np.sqrt(mse)
@@ -106,6 +108,9 @@ def test_model(config):
         mae_list.append(mae)
         mape_list.append(mape)
         r2_list.append(r2_score)
+        # Store residuals
+        residuals = targets_inverse[:, idx] - outputs_inverse[:, idx]
+        residuals_dict[target_var] = residuals
 
     # Compute mean metrics over all target variables
     mean_metrics = {
@@ -135,20 +140,23 @@ def test_model(config):
     print(f"  R-squared (R²): {mean_metrics['R2']:.6f}")
 
     # Save results and plots
-    import matplotlib.pyplot as plt
 
     # Create results directory if it doesn't exist
     results_dir = config['logging']['results_multi_dir']
     if not os.path.isdir(results_dir):
-        raise FileNotFoundError(f"The directory '{results_dir}' does not exist.")
+        os.makedirs(results_dir)
 
     # Generate a filename prefix based on the model used
     model_identifier = os.path.splitext(model_name)[0]  # Remove '.pth' extension
 
-    # Include 'multi' in the filenames
-    identifier = 'multi'
+    # Create a subdirectory named after the model identifier
+    model_results_dir = os.path.join(results_dir, model_identifier)
+    if not os.path.isdir(model_results_dir):
+        os.makedirs(model_results_dir)
 
     num_targets = len(config['target_variables'])
+
+    # Time Series Plot
     plt.figure(figsize=(12, 6 * num_targets))
     for idx, target_var in enumerate(config['target_variables']):
         plt.subplot(num_targets, 1, idx + 1)
@@ -159,17 +167,61 @@ def test_model(config):
         plt.xlabel('Sample Index')
         plt.ylabel(target_var)
     plt.tight_layout()
-
     # Save the figure
-    plot_filename = f"{model_identifier}_{identifier}_results.png"
-    plot_path = os.path.join(results_dir, plot_filename)
+    plot_filename = f"{model_identifier}_timeseries.png"
+    plot_path = os.path.join(model_results_dir, plot_filename)
     plt.savefig(plot_path)
     plt.close()
-    print(f"Results plot saved to {plot_path}")
+    print(f"Time series plots saved to {plot_path}")
+
+    # Scatter Plots and Residual Plots
+    for idx, target_var in enumerate(config['target_variables']):
+        # Scatter Plot
+        plt.figure(figsize=(6, 6))
+        plt.scatter(targets_inverse[:, idx], outputs_inverse[:, idx], alpha=0.5)
+        plt.plot([targets_inverse[:, idx].min(), targets_inverse[:, idx].max()],
+                 [targets_inverse[:, idx].min(), targets_inverse[:, idx].max()], 'r--')
+        plt.xlabel('Actual Values')
+        plt.ylabel('Predicted Values')
+        plt.title(f'Scatter Plot for {target_var}')
+        plt.tight_layout()
+        scatter_plot_filename = f"{model_identifier}_scatter_{target_var}.png"
+        scatter_plot_path = os.path.join(model_results_dir, scatter_plot_filename)
+        plt.savefig(scatter_plot_path)
+        plt.close()
+        print(f"Scatter plot for {target_var} saved to {scatter_plot_path}")
+
+        # Residual Plot
+        residuals = residuals_dict[target_var]
+        plt.figure(figsize=(6, 6))
+        plt.scatter(outputs_inverse[:, idx], residuals, alpha=0.5)
+        plt.hlines(y=0, xmin=outputs_inverse[:, idx].min(), xmax=outputs_inverse[:, idx].max(), colors='r', linestyles='--')
+        plt.xlabel('Predicted Values')
+        plt.ylabel('Residuals')
+        plt.title(f'Residual Plot for {target_var}')
+        plt.tight_layout()
+        residual_plot_filename = f"{model_identifier}_residual_{target_var}.png"
+        residual_plot_path = os.path.join(model_results_dir, residual_plot_filename)
+        plt.savefig(residual_plot_path)
+        plt.close()
+        print(f"Residual plot for {target_var} saved to {residual_plot_path}")
+
+        # Error Histogram
+        plt.figure(figsize=(6, 4))
+        plt.hist(residuals, bins=50, alpha=0.7)
+        plt.xlabel('Residual')
+        plt.ylabel('Frequency')
+        plt.title(f'Error Histogram for {target_var}')
+        plt.tight_layout()
+        histogram_filename = f"{model_identifier}_histogram_{target_var}.png"
+        histogram_path = os.path.join(model_results_dir, histogram_filename)
+        plt.savefig(histogram_path)
+        plt.close()
+        print(f"Error histogram for {target_var} saved to {histogram_path}")
 
     # Save metrics to a text file
-    metrics_filename = f"{model_identifier}_{identifier}_metrics.txt"
-    metrics_path = os.path.join(results_dir, metrics_filename)
+    metrics_filename = f"{model_identifier}_metrics.txt"
+    metrics_path = os.path.join(model_results_dir, metrics_filename)
     with open(metrics_path, 'w') as f:
         f.write("Test Results:\n")
         for target_var, metric in metrics.items():
@@ -194,5 +246,4 @@ if __name__ == "__main__":
     with open('config_ASTGCN.yaml') as f:
         config = yaml.safe_load(f)
 
-    # No need to add target variables here since they are already in the config
     test_model(config)

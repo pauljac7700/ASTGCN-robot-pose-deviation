@@ -71,12 +71,14 @@ def train_model(config):
     optimizer = optim.Adam(model.parameters(), lr=config['training']['learning_rate'], weight_decay=config['training']['weight_decay'])
 
     # TensorBoard setup
+    target_variable = config['single_target_variable']  # Get target variable from config
     current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_dir = os.path.join(config['logging']['log_dir'], current_time)
+    log_dir = os.path.join(config['logging']['log_single_dir'], f'ASTGCN_single_{target_variable}_{current_time}')
     os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
 
     model_save_dir = config['logging']['model_save_dir']
+    model_save_dir = os.path.join(model_save_dir, 'ASTGCN_single')
     os.makedirs(model_save_dir, exist_ok=True)
 
     hparams = {**config['model'], **config['training']}
@@ -100,11 +102,11 @@ def train_model(config):
             # Forward pass
             outputs = model(inputs_batch)  # Shape: (batch_size, N, num_for_predict)
 
-            # Extract outputs for the error node (Node 7)
-            outputs_x_dif = outputs[:, 7, :].squeeze(-1)  # Shape: (batch_size,)
+            # Extract outputs for the target node (Node 7)
+            outputs_target_node = outputs[:, 7, :].squeeze(-1)  # Shape: (batch_size,)
 
             # Compute loss
-            loss = criterion(outputs_x_dif, targets_batch.view(-1))
+            loss = criterion(outputs_target_node, targets_batch.view(-1))
 
             # Backward pass and optimization
             loss.backward()
@@ -125,11 +127,11 @@ def train_model(config):
                 targets_batch = targets_batch.to(DEVICE)
 
                 outputs = model(inputs_batch)
-                # Extract outputs for the error node (Node 7)
-                outputs_x_dif = outputs[:, 7, :].squeeze(-1)  # Shape: (batch_size,)
+                # Extract outputs for the target (Node 7)
+                outputs_target_node = outputs[:, 7, :].squeeze(-1)  # Shape: (batch_size,)
 
                 # Compute loss
-                loss = criterion(outputs_x_dif, targets_batch.view(-1))
+                loss = criterion(outputs_target_node, targets_batch.view(-1))
                 val_loss += loss.item() * inputs_batch.size(0)
         val_loss /= len(val_loader.dataset)
 
@@ -142,8 +144,8 @@ def train_model(config):
             best_val_loss = val_loss
             epochs_no_improve = 0
 
-            # Save the best model
-            model_name = f"astgcn_single_best_{current_time}.pth"
+            # Save the best model with the target variable in the name
+            model_name = f"astgcn_single_best_{target_variable}_{current_time}.pth"
             save_path = os.path.join(model_save_dir, model_name)
             torch.save({
                 'epoch': epoch + 1,

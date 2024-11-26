@@ -10,6 +10,7 @@ import yaml
 def prepare_data(config):
     # Load data
     df = pd.read_csv(config['data_file'])
+    df=df.loc[1:]
 
     # Drop unnecessary columns and check for missing values
     df = df.drop(columns=['step_order'], errors='ignore')
