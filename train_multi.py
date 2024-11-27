@@ -78,7 +78,7 @@ def train_model(config):
 
     # TensorBoard setup
     current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_dir = os.path.join(config['logging']['log_dir'], 'ASTGCN_multi',current_time)
+    log_dir = os.path.join(config['logging']['log_multi_dir'], f'ASTGCN_multi_{current_time}')
     os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
 

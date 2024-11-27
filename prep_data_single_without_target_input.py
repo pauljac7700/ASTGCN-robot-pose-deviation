@@ -42,7 +42,7 @@ def prepare_data(config):
 
     # First split off the test set
     inputs_train_val_df, inputs_test_df, target_train_val_df, target_test_df = train_test_split(
-        inputs_df, target_df, test_size=test_size, random_state=config['random_seed'], shuffle=True)
+        inputs_df, target_df, test_size=test_size, random_state=config['random_seed'], shuffle=False)
 
     # Then split train and validation sets without shuffling to prevent data leakage
     val_size_adjusted = val_size / (train_size + val_size)
