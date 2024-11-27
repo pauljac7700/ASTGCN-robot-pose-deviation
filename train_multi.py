@@ -41,7 +41,7 @@ def train_model(config):
     val_dataset = TensorDataset(inputs_val_tensor, targets_val_tensor)
 
     batch_size = config['training']['batch_size']
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
 
     # Load adjacency matrix
@@ -78,11 +78,12 @@ def train_model(config):
 
     # TensorBoard setup
     current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_dir = os.path.join(config['logging']['log_dir'], current_time)
+    log_dir = os.path.join(config['logging']['log_multi_dir'], f'ASTGCN_multi_{current_time}')
     os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
 
     model_save_dir = config['logging']['model_save_dir']
+    model_save_dir = os.path.join(model_save_dir, 'ASTGCN_multi')
     os.makedirs(model_save_dir, exist_ok=True)
 
     hparams = {**config['model'], **config['training']}

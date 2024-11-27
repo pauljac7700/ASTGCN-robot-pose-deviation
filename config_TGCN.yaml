@@ -1,0 +1,42 @@
+# config_TGCN.yaml
+
+# Random seed for reproducibility
+random_seed: 42
+
+# Data files
+data_file: 'data/measurements_random_poses_cleaned.csv'
+train_data_file: 'data/train_data.npz'
+val_data_file: 'data/val_data.npz'
+test_data_file: 'data/test_data.npz'
+scalers_file: 'data/scalers.joblib'
+adjacency_matrix_file: 'data/adjacency_matrix.npy'
+
+# Model parameters
+model:
+  input_dim: 8             # Number of nodes
+  hidden_dim: 128          # Hidden dimension in the TGCN cell
+  output_dim: 6            # Number of pose dimensions to predict
+  num_nodes: 8             # Number of nodes
+  seq_len: 11              # Sequence length (len_input + 1)
+  len_input: 10            # Sequence length for inputs
+  num_for_predict: 1       # Should be set to 1
+  num_of_vertices: 8       # Number of nodes (8)
+  in_channels: 6           # Number of features per node
+
+# Training parameters
+training:
+  batch_size: 16
+  num_epochs: 100
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  patience: 10             # For early stopping
+
+
+# Device configuration
+device: 'cpu'             # 'cuda' or 'cpu' or 'mps'
+
+# Logging and checkpoints
+logging:
+  log_dir: 'logs/TGCN'
+  model_save_dir: 'saved_models/TGCN'
+  results_dir: 'results/TGCN'
