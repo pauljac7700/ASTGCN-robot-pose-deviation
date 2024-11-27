@@ -43,13 +43,19 @@ def test_model(config):
 
     # Load the best saved model
     model_save_dir = os.path.join(config['logging']['model_save_dir'], 'ASTGCN_single')
-    model_files = [f for f in os.listdir(model_save_dir) if f.startswith('astgcn_single_best_') and f.endswith('.pth')]
+    model_identifier = config['single_target_variable']  # Use the target variable as the model identifier
+
+    # Filter model files by both the prefix and the identifier
+    model_files = [f for f in os.listdir(model_save_dir) if f.startswith(f'astgcn_single_best_{model_identifier}_') and f.endswith('.pth')]
+
     if not model_files:
-        raise FileNotFoundError("No saved model found in the specified directory.")
+        raise FileNotFoundError(f"No saved model found in the specified directory for target variable '{model_identifier}'.")
     else:
         model_files.sort()
-        model_name = model_files[-1]
+        model_name = model_files[-1]  # Load the most recent model
     model_path = os.path.join(model_save_dir, model_name)
+
+    # Load the model checkpoint
     checkpoint = torch.load(model_path, map_location=DEVICE)
     model.load_state_dict(checkpoint['model_state_dict'])
     print(f"Loaded model from {model_path}")
