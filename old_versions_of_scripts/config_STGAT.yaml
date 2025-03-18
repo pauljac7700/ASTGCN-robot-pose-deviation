@@ -1,0 +1,48 @@
+# config_STGAT.yaml
+
+# Path to the raw data CSV file
+data_file: 'data/measurements_random_poses_cleaned.csv'
+
+# Paths for scaled data and prepared datasets
+scalers_file: 'data/scalers_stgat.joblib'
+train_data_file: 'data/train_data_stgat.npz'
+val_data_file: 'data/val_data_stgat.npz'
+test_data_file: 'data/test_data_stgat.npz'
+
+# Adjacency matrix file
+adjacency_matrix_file: 'data/adjacency_matrix.npy'
+
+# Data splitting parameters
+test_size: 0.15
+val_size: 0.15
+random_seed: 42
+
+# Target variables to predict
+target_variables: ['x_dif', 'y_dif', 'z_dif', 'rx_dif', 'ry_dif', 'rz_dif']
+
+# Model configuration
+model:
+  num_timesteps_input: 10        # Length of input sequences (T=11)
+  num_timesteps_output: 1        # Number of future timesteps to predict
+  num_of_vertices: 8             # Number of nodes in the graph
+  num_features: 6                # Number of features per node
+  nheads: 4                      # Number of attention heads in GAT
+  nhid: 64                       # Number of hidden channels
+  layers: 4                      # Number of STGAT blocks
+
+# Training parameters
+training:
+  batch_size: 16                 # Batch size for training
+  learning_rate: 0.001           # Learning rate for optimizer
+  weight_decay: 0.0001           # Weight decay (L2 regularization)
+  patience: 10                   # Patience for early stopping
+  num_epochs: 100                # Maximum number of training epochs
+
+# Logging and saving configurations
+logging:
+  model_save_dir: 'saved_models/STGAT'   # Directory to save trained models
+  log_dir: 'logs/STGAT'                   # Directory for TensorBoard logs
+  results_dir: 'results/STGAT'           # Directory to save evaluation results
+
+# Device configuration
+device: 'cpu'                  # Compute device ('cpu' or 'cuda')

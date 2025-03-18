@@ -1,4 +1,4 @@
-# train_TGCN.py
+# train_ASTGCN_multi.py
 
 import os
 import torch
@@ -9,12 +9,9 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import numpy as np
 import yaml
-import joblib
-from model.TGCN import TGCNWithGlobalOutput
+from model.ASTGCN_multi import make_model
 from lib.extract_number_from_filename import extract_number_from_filename
-from lib.compare_yaml_configs import compare_yaml_configs
 import joblib
-
 
 def train_model(config):
 
@@ -52,11 +49,6 @@ def train_model(config):
     scalers = joblib.load(config['scalers_file'])
     # No need to apply scalers here since data is already scaled
 
-    # Process inputs to be compatible with TGCN model
-    # TGCN now expects inputs of shape (batch_size, seq_len, num_nodes, in_channels)
-    inputs_train = inputs_train.transpose(0, 3, 1, 2)  # Shape: (num_samples, seq_len, num_nodes, in_channels)
-    inputs_val = inputs_val.transpose(0, 3, 1, 2)
-
     # Convert to PyTorch tensors
     inputs_train_tensor = torch.from_numpy(inputs_train).float()
     residuals_train_tensor = torch.from_numpy(residuals_train).float()
@@ -73,22 +65,35 @@ def train_model(config):
 
     # Load adjacency matrix
     adj_mx = np.load(config['adjacency_matrix_file'])
+    # Do NOT convert adj_mx to a PyTorch tensor here
+    # Keep it as a NumPy array to be compatible with utils.py functions
 
     # Device configuration
     DEVICE = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
 
+    # Number of residuals
+    num_residuals = len(config['residual_variables'][dataset_dimension])
+
     # Initialize model
-    in_channels=config['model'][f'in_channels_{dataset_dimension}']
-    hidden_dim = config['model']['hidden_dim']
-    num_residuals = len(config['residual_variables'].get(config['dataset_dimension'], []))
-    tgcn_model = TGCNWithGlobalOutput(adj=adj_mx, in_channels=in_channels, hidden_dim=hidden_dim, num_residuals=num_residuals)
-    tgcn_model.to(DEVICE)
+    model = make_model(
+        DEVICE=DEVICE,
+        nb_block=config['model']['nb_block'],
+        in_channels=config['model'][f'in_channels_{dataset_dimension}'],
+        K=config['model']['K'],
+        nb_chev_filter=config['model']['nb_chev_filter'],
+        nb_time_filter=config['model']['nb_time_filter'],
+        time_strides=config['model']['time_strides'],
+        adj_mx=adj_mx,  # Pass the adjacency matrix as a NumPy array
+        num_for_predict=config['model']['num_for_predict'],
+        len_input=config['model']['len_input'] + 1,  # Adjusted for extended input sequence
+        num_of_vertices=config['model']['num_of_vertices'],
+        residual_dim=num_residuals  # Pass the number of residual variables
+    )
+    model.to(DEVICE)
 
     # Loss function and optimizer
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(tgcn_model.parameters(),
-                           lr=config['training']['learning_rate'],
-                           weight_decay=config['training']['weight_decay'])
+    optimizer = optim.Adam(model.parameters(), lr=config['training']['learning_rate'], weight_decay=config['training']['weight_decay'])
 
     # TensorBoard setup
     current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -110,19 +115,25 @@ def train_model(config):
     # Training loop
     num_epochs = config['training']['num_epochs']
     for epoch in range(num_epochs):
-        tgcn_model.train()
+        model.train()
         train_loss = 0.0
         for batch_idx, (inputs_batch, residuals_batch) in enumerate(train_loader):
-            inputs_batch = inputs_batch.to(DEVICE)  # Shape: (batch_size, seq_len, num_nodes, in_channels)
-            residuals_batch = residuals_batch.to(DEVICE)  # Shape: (batch_size, num_targets)
+            inputs_batch = inputs_batch.to(DEVICE)
+            residuals_batch = residuals_batch.to(DEVICE)
 
             optimizer.zero_grad()
 
             # Forward pass
-            outputs = tgcn_model(inputs_batch)  # Outputs shape: (batch_size, num_targets)
+            outputs = model(inputs_batch)  # Shape: (batch_size, num_nodes, num_for_predict, residual_dim)
+
+            # Extract outputs for Residual Node
+            outputs_residual_node = outputs[:,num_joints+1, :, :]  # Shape: (batch_size, num_for_predict, residual_dim)
+
+            # If num_for_predict == 1, squeeze the num_for_predict dimension
+            outputs_residual_node = outputs_residual_node.squeeze(1)  # Shape: (batch_size, residual_dim)
 
             # Compute loss
-            loss = criterion(outputs, residuals_batch)
+            loss = criterion(outputs_residual_node, residuals_batch)
 
             # Backward pass and optimization
             loss.backward()
@@ -135,16 +146,18 @@ def train_model(config):
         train_loss /= len(train_loader.dataset)
 
         # Validation loop
-        tgcn_model.eval()
+        model.eval()
         val_loss = 0.0
         with torch.no_grad():
             for inputs_batch, residuals_batch in val_loader:
                 inputs_batch = inputs_batch.to(DEVICE)
                 residuals_batch = residuals_batch.to(DEVICE)
 
-                outputs = tgcn_model(inputs_batch)
+                outputs = model(inputs_batch)  # Shape: (batch_size, num_nodes, num_for_predict, residual_dim)
+                outputs_residual_node = outputs[:, num_joints+1, :, :].squeeze(1)  # Shape: (batch_size, residual_dim)
 
-                loss = criterion(outputs, residuals_batch)
+                # Compute loss
+                loss = criterion(outputs_residual_node, residuals_batch)
                 val_loss += loss.item() * inputs_batch.size(0)
         val_loss /= len(val_loader.dataset)
 
@@ -162,7 +175,7 @@ def train_model(config):
             save_path = os.path.join(model_save_dir, saved_model_name)
             torch.save({
                 'epoch': epoch + 1,
-                'model_state_dict': tgcn_model.state_dict(),
+                'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'train_loss': train_loss,
                 'val_loss': val_loss,
@@ -179,17 +192,13 @@ def train_model(config):
                 break
 
     # Finalize TensorBoard logging
-    metrics = {'hparam/val_loss': best_val_loss}
+    metrics = {'hparam/val_loss': val_loss}
     writer.add_hparams(hparams, metrics)
     writer.close()
 
-
 if __name__ == "__main__":
     # Load configuration
-    with open('config_TGCN.yaml') as f:
+    with open('config_ASTGCN.yaml') as f:
         config = yaml.safe_load(f)
-    with open('config_ASTGCN.yaml', 'r') as f:
-        config_ASTGCN = yaml.safe_load(f)
-    compare_yaml_configs(config, config_ASTGCN)
 
     train_model(config)
