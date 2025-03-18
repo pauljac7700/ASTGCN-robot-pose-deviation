@@ -1,0 +1,49 @@
+#config_MLP_multi.yaml
+
+# Dataset preparation settings
+random_seed: 42
+dataset_dimension: '6D'  # or "3D"
+dataset_name: 'Landgraf'
+dataset_type: 'grid'  # or "grid"
+num_joints: 6
+locate_data_file: 'data/dfs_keyword.yaml'
+
+# Target pose variables for multi
+target_pose_variables:
+  6D:
+    - x_t
+    - y_t
+    - z_t
+    - rx_t
+    - ry_t
+    - rz_t
+  3D:
+  - x_t
+  - y_t
+  - z_t
+
+# Pose residual variables for multi
+residual_variables:
+  6D:
+    - x_dif
+    - y_dif
+    - z_dif
+    - rx_dif
+    - ry_dif
+    - rz_dif
+  3D:
+  - x_dif
+  - y_dif
+  - z_dif
+
+hidden_layer_sizes: [1024, 512]  # Number of neurons in each hidden layer
+activation: "relu"  # Activation function
+solver: "adam"  # Optimization solver
+epochs: 200  # Number of epochs (equivalent to max_iter)
+test_size: 0.2  # Fraction of data for testing
+random_state: 42  # Random seed for reproducibility
+
+# model names
+model_name:
+  multi: 'MLP_multi'
+

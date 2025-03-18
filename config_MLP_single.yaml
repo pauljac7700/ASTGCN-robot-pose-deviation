@@ -1,0 +1,18 @@
+# config_MLP_single.yaml
+
+data_file: 'data/measurements_random_poses_cleaned.csv'  # Path to your CSV file
+target_variable: 'rz_dif'  # Single target deviation column
+hidden_layer_sizes: [1024, 64]  # Number of neurons in each hidden layer
+activation: "relu"  # Activation function
+solver: "adam"  # Optimization solver
+epochs: 200  # Number of epochs (equivalent to max_iter)
+test_size: 0.2  # Fraction of data for testing
+random_state: 42  # Random seed for reproducibility
+
+# Logging settings
+logging:
+  log_dir: 'logs/MLP_single'  # Base directory for TensorBoard logs
+  model_save_dir: 'saved_models/MLP_single'  # Base directory for saving models
+  results_dir: 'results/MLP_single'  # Base directory for saving results
+
+

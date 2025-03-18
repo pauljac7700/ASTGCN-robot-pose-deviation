@@ -1,11 +1,10 @@
-# test_TGCN.py
+# test_Conv_LSTM.py
 
 import os
 import torch
 import numpy as np
 import yaml
-from model.TGCN import TGCNWithGlobalOutput
-from lib.extract_number_from_filename import extract_number_from_filename
+from model.ConvLSTM import ConvLSTMWithFC  # Ensure this imports your updated ConvLSTM module
 import joblib
 from lib.evaluation_metrics import (
     masked_mape,
@@ -19,90 +18,92 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 def test_model(config):
-    # Load test data
+    """
+    Evaluates the ConvLSTM model on the test dataset and generates performance metrics and visualizations.
+
+    Parameters:
+    - config (dict): Configuration parameters loaded from the YAML file.
+    """
     dataset_dimension = config['dataset_dimension']
     dataset_name = config['dataset_name']
     dataset_type = config['dataset_type']
-    print("Dataset Dimension:", dataset_dimension)
-    print("Dataset Name:", dataset_name)
-    print("Dataset Type:", dataset_type)
     model_name = config['model_name']['multi']
-    num_joints = config['num_joints']
-    if config['prep_data_incl_past_residuals']:
+    num_joints = config['num_joints'] 
+    if config['prep_data_incl_past_residuals']: 
         prep_data_incl_past_residuals = 'wr'
         print("Including past residuals in input features.")
-    else:
+    else:   
         prep_data_incl_past_residuals = 'nr'
         print("Excluding past residuals from input features.")
 
-    graph_nr = extract_number_from_filename(config['adjacency_matrix_file'])
-    print(f"Graph number: {graph_nr}")
-
-    test_data = np.load(f'data/test_data_{graph_nr}_{prep_data_incl_past_residuals}.npz')
-    inputs_test = test_data['inputs']  # 
-    residuals_test = test_data['residuals']  
-
-    # Process inputs to be compatible with TGCN model
-    # TGCN now expects inputs of shape (batch_size, seq_len, num_nodes, in_channels)
-    inputs_test = inputs_test.transpose(0, 3, 1, 2)  # Shape: (num_samples, seq_len, num_nodes, in_channels)
+        # Load test data
+    test_data = np.load(f'data/convlstm_test_{prep_data_incl_past_residuals}.npz')
+    inputs_test = test_data['inputs']  # Shape: (num_samples, num_nodes, in_channels, len_input + 1)
+    residuals_test = test_data['residuals']  # Shape: (num_samples, num_residuals)
 
     # Convert to PyTorch tensors
-    inputs_tensor = torch.from_numpy(inputs_test).float()
-    residuals_tensor = torch.from_numpy(residuals_test).float()
-
+    inputs_tensor = torch.from_numpy(inputs_test).float()   # Shape: (N, T, C, H, W)
+    residuals_tensor = torch.from_numpy(residuals_test).float() # Shape: (N, num_residuals)
+    
     # Device configuration
-    DEVICE = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
-
-    # Load adjacency matrix
-    adj_mx = np.load(config['adjacency_matrix_file'])
-
-    # Number of residuals
-    num_residuals = len(config['residual_variables'][dataset_dimension])
-
+    device = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
+    
     # Initialize model
-    in_channels = config['model'][f'in_channels_{dataset_dimension}']
-    hidden_dim = config['model']['hidden_dim']
-    num_residuals = len(config['residual_variables'].get(config['dataset_dimension'], []))
-    tgcn_model = TGCNWithGlobalOutput(adj=adj_mx, in_channels=in_channels, hidden_dim=hidden_dim, num_residuals=num_residuals)
-    tgcn_model.to(DEVICE)
-
+    model = ConvLSTMWithFC(
+        input_dim=config['model'][dataset_dimension]['input_dim'],
+        hidden_dim=config['model']['hidden_dim'],
+        kernel_size=config['model']['kernel_size'],
+        num_layers=config['model']['num_layers'],
+        output_dim=config['model'][dataset_dimension]['output_dim'],
+        bias=config['model']['bias'],
+        return_all_layers=config['model']['return_all_layers']
+    )
+    model.to(device)
+    print(model)
+    
     # Load the best saved model
     model_save_dir = os.path.join('saved_models',dataset_dimension,dataset_name,dataset_type,model_name)
-    model_files = [f for f in os.listdir(model_save_dir) if f.startswith(f'{model_name}_best_{graph_nr}_{prep_data_incl_past_residuals}') and f.endswith('.pth')]
+    model_files = [f for f in os.listdir(model_save_dir) if f.startswith(f'convlstm_best_{prep_data_incl_past_residuals}') and f.endswith('.pth')]
     if not model_files:
-        raise FileNotFoundError("No saved model found in the specified directory.")
+        raise FileNotFoundError("No saved ConvLSTM model found in the specified directory.")
     else:
         model_files.sort()
-        actual_model_name = model_files[-1]
-    model_path = os.path.join(model_save_dir, actual_model_name)
-    checkpoint = torch.load(model_path, map_location=DEVICE)
-    tgcn_model.load_state_dict(checkpoint['model_state_dict'])
-    print(f"Loaded model from {model_path}")
-
-    tgcn_model.eval()
-
+        trained_model_name = model_files[-1]  # Select the latest saved model
+    trained_model_path = os.path.join(model_save_dir, trained_model_name)
+    checkpoint = torch.load(trained_model_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    print(f"Loaded model from {trained_model_path}")
+    
+    model.eval()
+    
     # Make predictions
+    print("Making predictions on the test set...")
     with torch.no_grad():
-        inputs_tensor = inputs_tensor.to(DEVICE)
-        residuals_tensor = residuals_tensor.to(DEVICE)
-        print("Input tensor shape:", inputs_tensor.shape)
-        outputs = tgcn_model(inputs_tensor)  # (num_samples, num_targets)
-
+        inputs_tensor = inputs_tensor.to(device)
+        residuals_tensor = residuals_tensor.to(device)
+        outputs = model(inputs_tensor)  # Shape: (N, num_residuals)
+    
     # Inverse transform the predictions and targets
+    print("Inverse transforming the predictions and residuals...")
     scalers = joblib.load(config['scalers_file'])
     residual_scalers = scalers['residual_scalers']
-
-    outputs_np = outputs.cpu().numpy()
-    residuals_np = residuals_tensor.cpu().numpy()
-
+    
+    outputs_np = outputs.cpu().numpy()       # Shape: (N, num_residuals)
+    residuals_np = residuals_tensor.cpu().numpy()# Shape: (N, num_residuals)
+    
     outputs_inverse = np.zeros_like(outputs_np)
     residuals_inverse = np.zeros_like(residuals_np)
-
-    for idx, residual_var in enumerate(config['residual_variables'][dataset_dimension]):
+    
+    residual_variables = config.get('residual_variables', {}).get(config['dataset_dimension'], [])
+    
+    for idx, residual_var in enumerate(residual_variables):
         scaler = residual_scalers[residual_var]
         outputs_inverse[:, idx] = scaler.inverse_transform(outputs_np[:, idx].reshape(-1, 1)).reshape(-1)
         residuals_inverse[:, idx] = scaler.inverse_transform(residuals_np[:, idx].reshape(-1, 1)).reshape(-1)
-
+    
+    # Calculate evaluation metrics
+    print("Calculating evaluation metrics...")
     metrics = {}
     mse_list = []
     rmse_list = []
@@ -112,9 +113,8 @@ def test_model(config):
     mdape_list = []
     r2_list = []
     residuals_dict = {}
-
-    # Compute metrics for each target variable
-    for idx, residual_var in enumerate(config['residual_variables'][dataset_dimension]):
+    
+    for idx, residual_var in enumerate(residual_variables):
         mse = masked_mse(outputs_inverse[:, idx], residuals_inverse[:, idx], null_val=0)
         rmse = np.sqrt(mse)
         mape = masked_mape(outputs_inverse[:, idx], residuals_inverse[:, idx], null_val=0)
@@ -122,7 +122,7 @@ def test_model(config):
         mdape = masked_mdape(outputs_inverse[:, idx], residuals_inverse[:, idx], null_val=0)
         mae = masked_mae(outputs_inverse[:, idx], residuals_inverse[:, idx], null_val=0)
         r2_score = masked_r2_score(outputs_inverse[:, idx], residuals_inverse[:, idx], null_val=0)
-
+    
         metrics[residual_var] = {
             'MSE': mse,
             'RMSE': rmse,
@@ -132,7 +132,7 @@ def test_model(config):
             'MdAPE': mdape,
             'R2': r2_score
         }
-
+    
         mse_list.append(mse)
         rmse_list.append(rmse)
         mae_list.append(mae)
@@ -140,10 +140,10 @@ def test_model(config):
         smape_list.append(smape)
         mdape_list.append(mdape)
         r2_list.append(r2_score)
-
+    
         residuals = residuals_inverse[:, idx] - outputs_inverse[:, idx]
         residuals_dict[residual_var] = residuals
-
+    
     mean_metrics = {
         'MSE': np.mean(mse_list),
         'RMSE': np.mean(rmse_list),
@@ -153,7 +153,8 @@ def test_model(config):
         'MdAPE': np.median(mdape_list),
         'R2': np.mean(r2_list)
     }
-
+    
+    # Display metrics
     print("\nTest Results:")
     for residual_var, metric in metrics.items():
         print(f"Metrics for {residual_var}:")
@@ -164,8 +165,8 @@ def test_model(config):
         print(f"  Symmetric Mean Absolute Percentage Error (sMAPE): {metric['sMAPE']:.6f}%")
         print(f"  Median Absolute Percentage Error (MdAPE): {metric['MdAPE']:.6f}%")
         print(f"  R-squared (R²): {metric['R2']:.6f}\n")
-
-    print("Mean Metrics over all target variables:")
+    
+    print("Mean Metrics over all residual variables:")
     print(f"  Mean Squared Error (MSE): {mean_metrics['MSE']:.6f}")
     print(f"  Root Mean Squared Error (RMSE): {mean_metrics['RMSE']:.6f}")
     print(f"  Mean Absolute Error (MAE): {mean_metrics['MAE']:.6f}")
@@ -173,57 +174,59 @@ def test_model(config):
     print(f"  Symmetric Mean Absolute Percentage Error (sMAPE): {mean_metrics['sMAPE']:.6f}%")
     print(f"  Median Absolute Percentage Error (MdAPE): {mean_metrics['MdAPE']:.6f}%")
     print(f"  R-squared (R²): {mean_metrics['R2']:.6f}")
-
-    # Save results and plots
+    
+    # Save results
     # Create results directory if it doesn't exist
     results_dir = os.path.join('results',dataset_dimension,dataset_name,dataset_type,model_name)
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
-
-    # Generate a filename prefix based on the model used
-    model_identifier = os.path.splitext(actual_model_name)[0]  # Remove '.pth' extension
-
-    # Create a subdirectory named after the model identifier
+    
+    model_identifier = os.path.splitext(trained_model_name)[0]
     model_results_dir = os.path.join(results_dir, model_identifier)
     if not os.path.isdir(model_results_dir):
         os.makedirs(model_results_dir)
-
+    
+    num_residuals = len(residual_variables)
+    
+    # Plot Actual vs Predicted Time Series for each target variable
+    print("Generating time series plots...")
     plt.figure(figsize=(12, 6 * num_residuals))
-    for idx, residual_var in enumerate(config['residual_variables'][dataset_dimension]):
+    for idx, target_var in enumerate(residual_variables):
         plt.subplot(num_residuals, 1, idx + 1)
         plt.plot(residuals_inverse[:, idx], label='Actual')
         plt.plot(outputs_inverse[:, idx], label='Predicted')
         plt.legend()
-        plt.title(f'Actual vs. Predicted {residual_var}')
+        plt.title(f'Actual vs. Predicted {target_var}')
         plt.xlabel('Sample Index')
-        plt.ylabel(residual_var)
+        plt.ylabel(target_var)
     plt.tight_layout()
     plot_filename = f"{model_identifier}_timeseries.png"
     plot_path = os.path.join(model_results_dir, plot_filename)
     plt.savefig(plot_path)
     plt.close()
     print(f"Time series plots saved to {plot_path}")
-
-    # Scatter Plots and Residual Plots
-    for idx, residual_var in enumerate(config['residual_variables'][dataset_dimension]):
-        # Scatter Plot
+    
+    # Plot Scatter Plots for each target variable
+    print("Generating scatter plots...")
+    for idx, residual_var in enumerate(residual_variables):
         plt.figure(figsize=(6, 6))
         plt.scatter(residuals_inverse[:, idx], outputs_inverse[:, idx], alpha=0.5)
         plt.plot([residuals_inverse[:, idx].min(), residuals_inverse[:, idx].max()],
                  [residuals_inverse[:, idx].min(), residuals_inverse[:, idx].max()], 'r--')
         plt.xlabel('Actual Values')
         plt.ylabel('Predicted Values')
-        plt.title(f'Scatter Plot for {residual_var}')
+        plt.title(f'Scatter Plot for {target_var}')
         plt.tight_layout()
         scatter_plot_filename = f"{model_identifier}_scatter_{residual_var}.png"
         scatter_plot_path = os.path.join(model_results_dir, scatter_plot_filename)
         plt.savefig(scatter_plot_path)
         plt.close()
-
-        # Residual Plot
-        residuals = residuals_dict[residual_var]
+    
+    # Plot Residual Plots for each target variable
+    print("Generating residual plots...")
+    for idx, residual_var in enumerate(residual_variables):
         plt.figure(figsize=(6, 6))
-        plt.scatter(outputs_inverse[:, idx], residuals, alpha=0.5)
+        plt.scatter(outputs_inverse[:, idx], residuals_dict[residual_var], alpha=0.5)
         plt.hlines(y=0, xmin=outputs_inverse[:, idx].min(), xmax=outputs_inverse[:, idx].max(), colors='r', linestyles='--')
         plt.xlabel('Predicted Values')
         plt.ylabel('Residuals')
@@ -233,10 +236,12 @@ def test_model(config):
         residual_plot_path = os.path.join(model_results_dir, residual_plot_filename)
         plt.savefig(residual_plot_path)
         plt.close()
-
-        # Error Histogram
+    
+    # Plot Error Histograms for each target variable
+    print("Generating error histograms...")
+    for idx, residual_var in enumerate(residual_variables):
         plt.figure(figsize=(6, 4))
-        plt.hist(residuals, bins=50, alpha=0.7)
+        plt.hist(residuals_dict[residual_var], bins=50, alpha=0.7)
         plt.xlabel('Residual')
         plt.ylabel('Frequency')
         plt.title(f'Error Histogram for {residual_var}')
@@ -245,9 +250,11 @@ def test_model(config):
         histogram_path = os.path.join(model_results_dir, histogram_filename)
         plt.savefig(histogram_path)
         plt.close()
-
+    
+    # Save metrics to a text file
     metrics_filename = f"{model_identifier}_metrics.txt"
     metrics_path = os.path.join(model_results_dir, metrics_filename)
+    print(f"Saving metrics to {metrics_path}...")
     with open(metrics_path, 'w') as f:
         f.write("Test Results:\n")
         for residual_var, metric in metrics.items():
@@ -259,8 +266,8 @@ def test_model(config):
             f.write(f"  Symmetric Mean Absolute Percentage Error (sMAPE): {metric['sMAPE']:.6f}%\n")
             f.write(f"  Median Absolute Percentage Error (MdAPE): {metric['MdAPE']:.6f}%\n")
             f.write(f"  R-squared (R²): {metric['R2']:.6f}\n\n")
-
-        f.write("Mean Metrics over all target variables:\n")
+    
+        f.write("Mean Metrics over all residual variables:\n")
         f.write(f"  Mean Squared Error (MSE): {mean_metrics['MSE']:.6f}\n")
         f.write(f"  Root Mean Squared Error (RMSE): {mean_metrics['RMSE']:.6f}\n")
         f.write(f"  Mean Absolute Error (MAE): {mean_metrics['MAE']:.6f}\n")
@@ -268,27 +275,32 @@ def test_model(config):
         f.write(f"  Symmetric Mean Absolute Percentage Error (sMAPE): {mean_metrics['sMAPE']:.6f}%\n")
         f.write(f"  Median Absolute Percentage Error (MdAPE): {mean_metrics['MdAPE']:.6f}%\n")
         f.write(f"  R-squared (R²): {mean_metrics['R2']:.6f}\n")
-
+    
     print(f"Metrics saved to {metrics_path}")
-
+    
+    # Save detailed results to Excel
+    print("Saving detailed results to Excel...")
     df_data = {}
-    df_data['Sample Index'] = np.arange(len(residuals_inverse))
+    df_data = {'Sample Index': np.arange(len(residuals_inverse))}
 
-    for idx, residual_var in enumerate(config['residual_variables'][dataset_dimension]):
+    for idx, residual_var in enumerate(residual_variables):  # Iterate over variable names
         df_data[f"{residual_var}_Actual"] = residuals_inverse[:, idx]
         df_data[f"{residual_var}_Predicted"] = outputs_inverse[:, idx]
-        df_data[f"{residual_var}_Difference"] = residuals_dict[residual_var]
-
+        df_data[f"{residual_var}_Difference"] = residuals_dict[residual_var]  # Correct dictionary access
+    
     df = pd.DataFrame(df_data)
-
+    
     excel_filename = f"{model_identifier}_results.xlsx"
     excel_path = os.path.join(model_results_dir, excel_filename)
-
+    
     df.to_excel(excel_path, index=False)
     print(f"Detailed results (Actual, Predicted, Residuals) saved to {excel_path}")
 
-if __name__ == "__main__":
-    with open('config_TGCN.yaml') as f:
-        config = yaml.safe_load(f)
 
+if __name__ == "__main__":
+    # Load configuration
+    with open('config_Conv_LSTM.yaml') as f:
+        config = yaml.safe_load(f)
+    
+    # Start testing
     test_model(config)

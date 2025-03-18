@@ -1,0 +1,58 @@
+# config_new_graph.yaml
+
+# Data preparation settings
+random_seed: 42
+
+# Paths to data files
+data_file: 'data/measurements_random_poses_cleaned.csv'
+train_data_file: 'data/train_data.npz'
+val_data_file: 'data/val_data.npz'
+test_data_file: 'data/test_data.npz'
+scalers_file: 'data/scalers.joblib'
+adjacency_matrix_file: 'data/adjacency_matrix_new_graph.npy'
+
+# Data splitting ratios
+test_size: 0.20
+val_size: 0.15
+
+# Target variables for multi
+target_variables:
+  - x_dif
+  - y_dif
+  - z_dif
+  - rx_dif
+  - ry_dif
+  - rz_dif
+
+# Model hyperparameters
+model:
+  nb_block: 2
+  in_channels: 1  # Each node has one feature
+  K: 3
+  nb_chev_filter: 32
+  nb_time_filter: 32
+  time_strides: 1
+  num_for_predict: 1
+  len_input: 10
+  num_of_vertices: 18  # Total nodes (6 joint + 6 error + 6 setpoint)
+
+
+# Training hyperparameters
+training:
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  batch_size: 16
+  num_epochs: 50
+  patience: 10
+
+# Device configuration
+device: 'cuda'  # or 'cpu' if GPU is not available
+
+# Logging settings
+logging:
+  log_dir: 'logs/ASTGCN_new_graph'
+  model_save_dir: 'saved_models/ASTGCN_new_graph'
+  results_dir: 'results/ASTGCN_new_graph'
+
+# Other settings
+random_seed: 42

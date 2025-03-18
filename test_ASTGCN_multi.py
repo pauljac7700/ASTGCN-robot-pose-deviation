@@ -1,10 +1,10 @@
-# test_TGCN.py
+# test_ASTGCN_multi.py
 
 import os
 import torch
 import numpy as np
 import yaml
-from model.TGCN import TGCNWithGlobalOutput
+from model.ASTGCN_multi import make_model
 from lib.extract_number_from_filename import extract_number_from_filename
 import joblib
 from lib.evaluation_metrics import (
@@ -39,12 +39,8 @@ def test_model(config):
     print(f"Graph number: {graph_nr}")
 
     test_data = np.load(f'data/test_data_{graph_nr}_{prep_data_incl_past_residuals}.npz')
-    inputs_test = test_data['inputs']  # 
-    residuals_test = test_data['residuals']  
-
-    # Process inputs to be compatible with TGCN model
-    # TGCN now expects inputs of shape (batch_size, seq_len, num_nodes, in_channels)
-    inputs_test = inputs_test.transpose(0, 3, 1, 2)  # Shape: (num_samples, seq_len, num_nodes, in_channels)
+    inputs_test = test_data['inputs']  # Shape: (num_samples, num_nodes, in_channels, len_input + 1)
+    residuals_test = test_data['residuals']  # Shape: (num_samples, num_residuals)
 
     # Convert to PyTorch tensors
     inputs_tensor = torch.from_numpy(inputs_test).float()
@@ -60,11 +56,21 @@ def test_model(config):
     num_residuals = len(config['residual_variables'][dataset_dimension])
 
     # Initialize model
-    in_channels = config['model'][f'in_channels_{dataset_dimension}']
-    hidden_dim = config['model']['hidden_dim']
-    num_residuals = len(config['residual_variables'].get(config['dataset_dimension'], []))
-    tgcn_model = TGCNWithGlobalOutput(adj=adj_mx, in_channels=in_channels, hidden_dim=hidden_dim, num_residuals=num_residuals)
-    tgcn_model.to(DEVICE)
+    model = make_model(
+        DEVICE=DEVICE,
+        nb_block=config['model']['nb_block'],
+        in_channels=config['model'][f'in_channels_{dataset_dimension}'],
+        K=config['model']['K'],
+        nb_chev_filter=config['model']['nb_chev_filter'],
+        nb_time_filter=config['model']['nb_time_filter'],
+        time_strides=config['model']['time_strides'],
+        adj_mx=adj_mx,
+        num_for_predict=config['model']['num_for_predict'],
+        len_input=config['model']['len_input'] + 1,
+        num_of_vertices=config['model']['num_of_vertices'],
+        residual_dim=num_residuals
+    )
+    model.to(DEVICE)
 
     # Load the best saved model
     model_save_dir = os.path.join('saved_models',dataset_dimension,dataset_name,dataset_type,model_name)
@@ -76,23 +82,26 @@ def test_model(config):
         actual_model_name = model_files[-1]
     model_path = os.path.join(model_save_dir, actual_model_name)
     checkpoint = torch.load(model_path, map_location=DEVICE)
-    tgcn_model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint['model_state_dict'])
     print(f"Loaded model from {model_path}")
 
-    tgcn_model.eval()
+    model.eval()
 
     # Make predictions
     with torch.no_grad():
         inputs_tensor = inputs_tensor.to(DEVICE)
         residuals_tensor = residuals_tensor.to(DEVICE)
-        print("Input tensor shape:", inputs_tensor.shape)
-        outputs = tgcn_model(inputs_tensor)  # (num_samples, num_targets)
+
+        outputs = model(inputs_tensor)  # Shape: (num_samples, num_nodes, num_for_predict, target_dim)
+
+        # Extract outputs for Pose Residuals of last node
+        outputs_residual_node = outputs[:, num_joints+1, :, :].squeeze(1)  # Shape: (num_samples, target_dim)
 
     # Inverse transform the predictions and targets
     scalers = joblib.load(config['scalers_file'])
     residual_scalers = scalers['residual_scalers']
 
-    outputs_np = outputs.cpu().numpy()
+    outputs_np = outputs_residual_node.cpu().numpy()
     residuals_np = residuals_tensor.cpu().numpy()
 
     outputs_inverse = np.zeros_like(outputs_np)
@@ -103,6 +112,7 @@ def test_model(config):
         outputs_inverse[:, idx] = scaler.inverse_transform(outputs_np[:, idx].reshape(-1, 1)).reshape(-1)
         residuals_inverse[:, idx] = scaler.inverse_transform(residuals_np[:, idx].reshape(-1, 1)).reshape(-1)
 
+    # Initialize metric lists
     metrics = {}
     mse_list = []
     rmse_list = []
@@ -122,7 +132,7 @@ def test_model(config):
         mdape = masked_mdape(outputs_inverse[:, idx], residuals_inverse[:, idx], null_val=0)
         mae = masked_mae(outputs_inverse[:, idx], residuals_inverse[:, idx], null_val=0)
         r2_score = masked_r2_score(outputs_inverse[:, idx], residuals_inverse[:, idx], null_val=0)
-
+        
         metrics[residual_var] = {
             'MSE': mse,
             'RMSE': rmse,
@@ -132,7 +142,7 @@ def test_model(config):
             'MdAPE': mdape,
             'R2': r2_score
         }
-
+        
         mse_list.append(mse)
         rmse_list.append(rmse)
         mae_list.append(mae)
@@ -140,10 +150,11 @@ def test_model(config):
         smape_list.append(smape)
         mdape_list.append(mdape)
         r2_list.append(r2_score)
-
+        
         residuals = residuals_inverse[:, idx] - outputs_inverse[:, idx]
         residuals_dict[residual_var] = residuals
 
+    # Compute mean metrics over all residual variables
     mean_metrics = {
         'MSE': np.mean(mse_list),
         'RMSE': np.mean(rmse_list),
@@ -154,6 +165,7 @@ def test_model(config):
         'R2': np.mean(r2_list)
     }
 
+    # Print metrics
     print("\nTest Results:")
     for residual_var, metric in metrics.items():
         print(f"Metrics for {residual_var}:")
@@ -165,7 +177,8 @@ def test_model(config):
         print(f"  Median Absolute Percentage Error (MdAPE): {metric['MdAPE']:.6f}%")
         print(f"  R-squared (R²): {metric['R2']:.6f}\n")
 
-    print("Mean Metrics over all target variables:")
+    # Print mean metrics
+    print("Mean Metrics over all residual variables:")
     print(f"  Mean Squared Error (MSE): {mean_metrics['MSE']:.6f}")
     print(f"  Root Mean Squared Error (RMSE): {mean_metrics['RMSE']:.6f}")
     print(f"  Mean Absolute Error (MAE): {mean_metrics['MAE']:.6f}")
@@ -188,6 +201,7 @@ def test_model(config):
     if not os.path.isdir(model_results_dir):
         os.makedirs(model_results_dir)
 
+    # Time Series Plot
     plt.figure(figsize=(12, 6 * num_residuals))
     for idx, residual_var in enumerate(config['residual_variables'][dataset_dimension]):
         plt.subplot(num_residuals, 1, idx + 1)
@@ -198,6 +212,7 @@ def test_model(config):
         plt.xlabel('Sample Index')
         plt.ylabel(residual_var)
     plt.tight_layout()
+    # Save the figure
     plot_filename = f"{model_identifier}_timeseries.png"
     plot_path = os.path.join(model_results_dir, plot_filename)
     plt.savefig(plot_path)
@@ -246,6 +261,7 @@ def test_model(config):
         plt.savefig(histogram_path)
         plt.close()
 
+    # Save metrics to a text file
     metrics_filename = f"{model_identifier}_metrics.txt"
     metrics_path = os.path.join(model_results_dir, metrics_filename)
     with open(metrics_path, 'w') as f:
@@ -260,7 +276,8 @@ def test_model(config):
             f.write(f"  Median Absolute Percentage Error (MdAPE): {metric['MdAPE']:.6f}%\n")
             f.write(f"  R-squared (R²): {metric['R2']:.6f}\n\n")
 
-        f.write("Mean Metrics over all target variables:\n")
+        # Write mean metrics
+        f.write("Mean Metrics over all residual variables:\n")
         f.write(f"  Mean Squared Error (MSE): {mean_metrics['MSE']:.6f}\n")
         f.write(f"  Root Mean Squared Error (RMSE): {mean_metrics['RMSE']:.6f}\n")
         f.write(f"  Mean Absolute Error (MAE): {mean_metrics['MAE']:.6f}\n")
@@ -268,9 +285,9 @@ def test_model(config):
         f.write(f"  Symmetric Mean Absolute Percentage Error (sMAPE): {mean_metrics['sMAPE']:.6f}%\n")
         f.write(f"  Median Absolute Percentage Error (MdAPE): {mean_metrics['MdAPE']:.6f}%\n")
         f.write(f"  R-squared (R²): {mean_metrics['R2']:.6f}\n")
-
     print(f"Metrics saved to {metrics_path}")
 
+    # Create Excel File with Actual, Predicted, Difference
     df_data = {}
     df_data['Sample Index'] = np.arange(len(residuals_inverse))
 
@@ -285,10 +302,10 @@ def test_model(config):
     excel_path = os.path.join(model_results_dir, excel_filename)
 
     df.to_excel(excel_path, index=False)
-    print(f"Detailed results (Actual, Predicted, Residuals) saved to {excel_path}")
+    print(f"Detailed results (Actual, Predicted, Difference) saved to {excel_path}")
 
 if __name__ == "__main__":
-    with open('config_TGCN.yaml') as f:
+    with open('config_ASTGCN.yaml') as f:
         config = yaml.safe_load(f)
 
     test_model(config)

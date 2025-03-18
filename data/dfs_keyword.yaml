@@ -1,0 +1,14 @@
+#dfs_keyword.yaml
+
+6D:
+  Landgraf:
+    grid: "6D_Landgraf_grid_cleaned.csv"
+    random: "6D_Landgraf_random_cleaned.csv"
+
+3D:
+  UR5_v1:
+    grid: "3D_UR5_v1_grid_cleaned.csv"
+    random: "3D_UR5_v1_random_cleaned.csv"
+  UR5_v2:
+    grid: "3D_UR5_v2_grid_cleaned.csv"
+
