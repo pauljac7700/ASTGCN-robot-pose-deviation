@@ -1,4 +1,4 @@
-# -*- coding:utf-8 -*-
+# ASTGCN_multi.py
 
 import torch
 import torch.nn as nn
@@ -308,7 +308,7 @@ class ASTGCN_submodule(nn.Module):
 
     def __init__(self, DEVICE: torch.device, nb_block: int, in_channels: int, K: int, nb_chev_filter: int,
                  nb_time_filter: int, time_strides: int, cheb_polynomials: list, num_for_predict: int,
-                 len_input: int, num_of_vertices: int, target_dim: int):
+                 len_input: int, num_of_vertices: int, residual_dim: int):
         '''
         Initialize the ASTGCN submodule.
 
@@ -323,13 +323,13 @@ class ASTGCN_submodule(nn.Module):
         :param num_for_predict: Number of future time steps to predict.
         :param len_input: Length of input sequence.
         :param num_of_vertices: Number of nodes in the graph.
-        :param target_dim: Number of target dimensions (e.g., pose error components).
+        :param residual_dim: Number of residual dimensions (e.g., pose residual components).
         '''
         super(ASTGCN_submodule, self).__init__()
 
         self.DEVICE = DEVICE
         self.num_for_predict = num_for_predict
-        self.target_dim = target_dim
+        self.residual_dim = residual_dim
 
         # Create ASTGCN blocks
         self.BlockList = nn.ModuleList()
@@ -339,10 +339,10 @@ class ASTGCN_submodule(nn.Module):
             self.BlockList.append(ASTGCN_block(DEVICE, nb_time_filter, K, nb_chev_filter, nb_time_filter,
                                                1, cheb_polynomials, num_of_vertices, len_input // time_strides))
 
-        # Final convolution layer to output num_for_predict * target_dim features
+        # Final convolution layer to output num_for_predict * residual_dim features
         self.final_conv = nn.Conv2d(
             in_channels=int(len_input / time_strides),
-            out_channels=num_for_predict * target_dim,
+            out_channels=num_for_predict * residual_dim,
             kernel_size=(1, nb_time_filter)
         )
 
@@ -353,7 +353,7 @@ class ASTGCN_submodule(nn.Module):
         Forward pass for the ASTGCN submodule.
 
         :param x: Input tensor of shape (batch_size, N, F_in, T_in)
-        :return: Output tensor of shape (batch_size, N, num_for_predict, target_dim)
+        :return: Output tensor of shape (batch_size, N, num_for_predict, residual_dim)
         '''
         # x shape: (B, N, F_in, T_in)
         for block in self.BlockList:
@@ -367,15 +367,15 @@ class ASTGCN_submodule(nn.Module):
         x = self.final_conv(x)  # Shape: (B, num_for_predict * target_dim, N, 1)
 
         # Remove last dimension
-        x = x.squeeze(-1)  # Shape: (B, num_for_predict * target_dim, N)
+        x = x.squeeze(-1)  # Shape: (B, num_for_predict * residual_dim, N)
 
-        # Permute to (B, N, num_for_predict * target_dim)
-        x = x.permute(0, 2, 1)  # Shape: (B, N, num_for_predict * target_dim)
+        # Permute to (B, N, num_for_predict * residual_dim)
+        x = x.permute(0, 2, 1)  # Shape: (B, N, num_for_predict * residual_dim)
 
-        # Reshape to separate num_for_predict and target_dim
-        x = x.view(x.shape[0], x.shape[1], self.num_for_predict, self.target_dim)  # Shape: (B, N, num_for_predict, target_dim)
+        # Reshape to separate num_for_predict and residual_dim
+        x = x.view(x.shape[0], x.shape[1], self.num_for_predict, self.residual_dim)  # Shape: (B, N, num_for_predict, residual_dim)
 
-        return x  # Output shape: (B, N, num_for_predict, target_dim)
+        return x  # Output shape: (B, N, num_for_predict, residual_dim)
 
 # ---------------------------------------------------------------------
 # Model Creation Function
@@ -383,7 +383,7 @@ class ASTGCN_submodule(nn.Module):
 
 def make_model(DEVICE: torch.device, nb_block: int, in_channels: int, K: int, nb_chev_filter: int,
                nb_time_filter: int, time_strides: int, adj_mx: torch.Tensor, num_for_predict: int,
-               len_input: int, num_of_vertices: int, target_dim: int) -> nn.Module:
+               len_input: int, num_of_vertices: int, residual_dim: int) -> nn.Module:
     '''
     Create the ASTGCN model.
 
@@ -398,7 +398,7 @@ def make_model(DEVICE: torch.device, nb_block: int, in_channels: int, K: int, nb
     :param num_for_predict: Number of future time steps to predict.
     :param len_input: Length of input sequence.
     :param num_of_vertices: Number of nodes in the graph.
-    :param target_dim: Number of target dimensions.
+    :param residual_dim: Number of residual dimensions.
     :return: ASTGCN model.
     '''
     # Compute scaled Laplacian and Chebyshev polynomials
@@ -419,7 +419,7 @@ def make_model(DEVICE: torch.device, nb_block: int, in_channels: int, K: int, nb
         num_for_predict=num_for_predict,
         len_input=len_input,
         num_of_vertices=num_of_vertices,
-        target_dim=target_dim
+        residual_dim=residual_dim
     )
 
     # Initialize model parameters

@@ -1,62 +1,86 @@
-# config.yaml
+# config_ASTGCN.yaml
 
-# Data preparation settings
+# Dataset preparation settings
 random_seed: 42
+dataset_dimension: '6D'  # "6D" or "3D"
+dataset_name: 'Landgraf'
+dataset_type: 'random'  # "random" or "grid"
+num_joints: 6
 
-# Paths to data files
-data_file: 'data/measurements_random_poses_cleaned.csv'
-train_data_file: 'data/train_data.npz'
-val_data_file: 'data/val_data.npz'
-test_data_file: 'data/test_data.npz'
+
+locate_data_file: 'data/dfs_keyword.yaml'
+prep_data_incl_past_residuals: False  # True or False
 scalers_file: 'data/scalers.joblib'
-adjacency_matrix_file: 'data/adjacency_matrix.npy'
+adjacency_matrix_file: 'data/adjacency_matrix_5_6D.npy'  # Path to the adjacency matrix file
+
+#Test on different data
+test_on_different_data: False  # True or False
+test_dataset_type: 'random'  # "random" or "grid"
 
 # Data splitting ratios
-test_size: 0.20
+test_size: 0.15
 val_size: 0.15
 
-# Target variables for multi
-target_variables:
+# Target pose variables for multi
+target_pose_variables:
+  6D:
+    - x_t
+    - y_t
+    - z_t
+    - rx_t
+    - ry_t
+    - rz_t
+  3D:
+  - x_t
+  - y_t
+  - z_t
+
+# Pose residual variables for multi
+residual_variables:
+  6D:
+    - x_dif
+    - y_dif
+    - z_dif
+    - rx_dif
+    - ry_dif
+    - rz_dif
+  3D:
   - x_dif
   - y_dif
   - z_dif
-  - rx_dif
-  - ry_dif
-  - rz_dif
 
-# single target variable:
-single_target_variable: 'rz_dif'
+# single pose residual variable:
+single_residual_variable: 'z_dif'
+
+# Ablation model to use
+ablation_model: 'multi_no_temporal'  # 'multi_no_attention' or 'multi_no_spatial' or 'multi_no_temporal'
 
 # Model hyperparameters
 model:
   nb_block: 2
-  in_channels: 6
+  in_channels_6D: 6
+  in_channels_3D: 3
   K: 3
   nb_chev_filter: 32 #original 64
   nb_time_filter: 32 #original 64
   time_strides: 1
   num_for_predict: 1
-  len_input: 10
-  num_of_vertices: 8
+  len_input: 1
 
 # Training hyperparameters
 training:
   learning_rate: 0.001
   weight_decay: 0.0001
   batch_size: 16
-  num_epochs: 50
-  patience: 10
-
+  num_epochs: 100 #100
+  patience: 20 #15
 # Device configuration
 device: 'cuda'  # or 'cpu' if GPU is not available
 
-# Logging settings
-logging:
-  log_single_dir: 'logs/ASTGCN_single'
-  log_multi_dir: 'logs/ASTGCN_multi'
-  model_save_dir: 'saved_models'
-  results_single_dir: 'results/ASTGCN_single'
-  results_multi_dir: 'results/ASTGCN_multi'
-
-# Other settings
-random_seed: 42
+# model names
+model_name:
+  single: 'ASTGCN_single'
+  multi: 'ASTGCN_multi'
+  multi_no_attention: 'ASTGCN_multi_no_attention'
+  multi_no_spatial: 'ASTGCN_multi_no_spatial'
+  multi_no_temporal: 'ASTGCN_multi_no_temporal'
