@@ -1,8 +1,7 @@
 # ASTGCN & Baseline Models Repository
 
-This repository contains implementations and experiments for spatial–temporal graph convolution models and several baseline methods. The primary focus is on ASTGCN (Adaptive Spatio-Temporal Graph Convolutional Network), but you can also run an MLP, a TGCN, and a ConvLSTM model.
+This repository contains implementations and experiments for spatial–temporal graph convolution models and several baseline methods. The primary focus is on ASTGCN (Attention-based Spatio-Temporal Graph Convolutional Network), but you can also run an MLP, a TGCN, and a ConvLSTM model.
 
-For any questions, please contact me at: [paul.jacobi@rwth-aachen.de](mailto:paul.jacobi@rwth-aachen.de).
 
 Repo link: [https://github.com/pauljac7700/ASTGCN-robot-pose-deviation.git](https://github.com/pauljac7700/ASTGCN-robot-pose-deviation.git)
 
