@@ -1,4 +1,4 @@
-# prep_data_multi_without_target_input.py
+# prep_data_multi.py
 
 import numpy as np
 import pandas as pd
