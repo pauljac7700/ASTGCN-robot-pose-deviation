@@ -165,7 +165,7 @@ def test_model(config):
         print(f"  Median Absolute Percentage Error (MdAPE): {metric['MdAPE']:.6f}%")
         print(f"  R-squared (R²): {metric['R2']:.6f}\n")
 
-    print("Mean Metrics over all target variables:")
+    print("Mean Metrics over all residual variables:")
     print(f"  Mean Squared Error (MSE): {mean_metrics['MSE']:.6f}")
     print(f"  Root Mean Squared Error (RMSE): {mean_metrics['RMSE']:.6f}")
     print(f"  Mean Absolute Error (MAE): {mean_metrics['MAE']:.6f}")
@@ -260,7 +260,7 @@ def test_model(config):
             f.write(f"  Median Absolute Percentage Error (MdAPE): {metric['MdAPE']:.6f}%\n")
             f.write(f"  R-squared (R²): {metric['R2']:.6f}\n\n")
 
-        f.write("Mean Metrics over all target variables:\n")
+        f.write("Mean Metrics over all residual variables:\n")
         f.write(f"  Mean Squared Error (MSE): {mean_metrics['MSE']:.6f}\n")
         f.write(f"  Root Mean Squared Error (RMSE): {mean_metrics['RMSE']:.6f}\n")
         f.write(f"  Mean Absolute Error (MAE): {mean_metrics['MAE']:.6f}\n")
@@ -287,6 +287,40 @@ def test_model(config):
     df.to_excel(excel_path, index=False)
     print(f"Detailed results (Actual, Predicted, Residuals) saved to {excel_path}")
 
+    # Identify indices for x, y, z values
+    xyz_indices = [idx for idx, residual_var in enumerate(config['residual_variables'][dataset_dimension]) if residual_var in ['x_dif', 'y_dif', 'z_dif']]
+
+    # Calculate Euclidean distance for each sample using only x, y, z values
+    euclidean_distances = np.linalg.norm(residuals_inverse[:, xyz_indices] - outputs_inverse[:, xyz_indices], axis=1)
+
+    # Calculate Euclidean distance for actual residuals
+    actual_euclidean_distances = np.linalg.norm(residuals_inverse[:, xyz_indices], axis=1)
+    
+    # Calculate mean values
+    mean_euclidean = np.mean(euclidean_distances)
+    mean_actual_euclidean = np.mean(actual_euclidean_distances)
+
+    # Create a line plot for Euclidean distances with mean values indicated in the legend
+    plt.figure(figsize=(12, 6))
+    plt.plot(actual_euclidean_distances,
+             label=f'Actual Residuals (Euclidean Distance) - Mean: {mean_actual_euclidean:.2f}',
+             color='green')
+    plt.plot(euclidean_distances,
+             label=f'Difference (Actual - Predicted) - Mean: {mean_euclidean:.2f}',
+             color='blue')
+    plt.title('Euclidean Distance Over Samples')
+    plt.xlabel('Sample Index')
+    plt.ylabel('Euclidean Distance')
+    plt.legend()
+    plt.tight_layout()
+
+    # Save the plot
+    euclidean_plot_filename = f"{model_identifier}_euclidean_distance_plot.png"
+    euclidean_plot_path = os.path.join(model_results_dir, euclidean_plot_filename)
+    plt.savefig(euclidean_plot_path)
+    plt.close()
+    print(f"Euclidean distance plot saved to {euclidean_plot_path}")
+    
 if __name__ == "__main__":
     with open('config_TGCN.yaml') as f:
         config = yaml.safe_load(f)

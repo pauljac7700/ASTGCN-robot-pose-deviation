@@ -6,7 +6,8 @@ import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from lib.extract_number_from_filename import extract_number_from_filename
-from create_data_sequences.create_sequences_1 import create_sequences_1_nr, create_sequences_1_wr
+from lib.get_adjacency_matrix_size import get_adjacency_matrix_size
+from create_data_sequences.create_all_sequences import create_all_sequences
 import yaml
 
 def prepare_data(config):
@@ -18,7 +19,7 @@ def prepare_data(config):
     print("Dataset Name:", config['dataset_name'])
     print("Dataset Type:", config['dataset_type'])
     num_joints = config['num_joints']
-    dataset_dimension = config['dataset_dimension']
+    
     if config['prep_data_incl_past_residuals']:
         prep_data_incl_past_residuals = 'wr'
         print("Including past residuals in input features.")
@@ -28,6 +29,10 @@ def prepare_data(config):
 
     graph_nr = extract_number_from_filename(config['adjacency_matrix_file'])
     print(f"Graph number: {graph_nr}")
+
+    # Get the number of nodes from the adjacency matrix
+    num_nodes = get_adjacency_matrix_size(config)
+    print(f"Number of nodes: {num_nodes}")
 
     # Extract dataset file path from YAML
     grid_file = locate_data.get(config['dataset_dimension'], {}).get(config['dataset_name'], {}).get(config['dataset_type'], None)
@@ -112,15 +117,9 @@ def prepare_data(config):
     print(f"Scalers saved to {config['scalers_file']}")
 
     # Create sequences for training, validation, and test sets
-    if (prep_data_incl_past_residuals == 'nr' and graph_nr == 1):
-        inputs_train, residuals_train = create_sequences_1_nr(inputs_train_df.reset_index(drop=True), residual_train_df.reset_index(drop=True), config, dataset_dimension, joint_features, target_pose_features, residual_variables, num_joints)
-        inputs_val, residuals_val = create_sequences_1_nr(inputs_val_df.reset_index(drop=True), residual_val_df.reset_index(drop=True), config, dataset_dimension, joint_features, target_pose_features, residual_variables, num_joints)
-        inputs_test, residuals_test = create_sequences_1_nr(inputs_test_df.reset_index(drop=True), residual_test_df.reset_index(drop=True), config, dataset_dimension, joint_features, target_pose_features, residual_variables, num_joints)
-    elif (prep_data_incl_past_residuals == 'wr' and graph_nr == 1):
-        inputs_train, residuals_train = create_sequences_1_wr(inputs_train_df.reset_index(drop=True), residual_train_df.reset_index(drop=True), config, dataset_dimension, joint_features, target_pose_features, residual_variables, num_joints)
-        inputs_val, residuals_val = create_sequences_1_wr(inputs_val_df.reset_index(drop=True), residual_val_df.reset_index(drop=True), config, dataset_dimension, joint_features, target_pose_features, residual_variables, num_joints)
-        inputs_test, residuals_test = create_sequences_1_wr(inputs_test_df.reset_index(drop=True), residual_test_df.reset_index(drop=True), config, dataset_dimension, joint_features, target_pose_features, residual_variables, num_joints)
-
+    inputs_train, residuals_train, inputs_val, residuals_val, inputs_test, residuals_test = create_all_sequences(
+        graph_nr, num_nodes, inputs_train_df, residual_train_df, inputs_val_df, residual_val_df, inputs_test_df, residual_test_df, config, joint_features, target_pose_features, residual_variables)
+    
     # Save the datasets
     np.savez_compressed(f'data/train_data_{graph_nr}_{prep_data_incl_past_residuals}.npz', inputs=inputs_train, residuals=residuals_train)
     np.savez_compressed(f'data/val_data_{graph_nr}_{prep_data_incl_past_residuals}.npz', inputs=inputs_val, residuals=residuals_val)

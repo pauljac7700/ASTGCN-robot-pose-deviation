@@ -1,5 +1,3 @@
-# train_TGCN.py
-
 import os
 import torch
 import torch.nn as nn
@@ -77,10 +75,17 @@ def train_model(config):
     # Device configuration
     DEVICE = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
 
+    # Number of residuals
+    num_residuals = len(config['residual_variables'][dataset_dimension])
+
+    # Set the in_channels and residual_dim depending on the underlying graph
+    if graph_nr in [1, 3, 6, 7]:
+        in_channels = config['model'][f'in_channels_{dataset_dimension}']
+    elif graph_nr == 2:
+        in_channels = 1
+
     # Initialize model
-    in_channels=config['model'][f'in_channels_{dataset_dimension}']
     hidden_dim = config['model']['hidden_dim']
-    num_residuals = len(config['residual_variables'].get(config['dataset_dimension'], []))
     tgcn_model = TGCNWithGlobalOutput(adj=adj_mx, in_channels=in_channels, hidden_dim=hidden_dim, num_residuals=num_residuals)
     tgcn_model.to(DEVICE)
 
@@ -92,11 +97,12 @@ def train_model(config):
 
     # TensorBoard setup
     current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_dir = os.path.join('logs',dataset_dimension,dataset_name,dataset_type,model_name, f'{model_name}_{current_time}_{dataset_dimension}_{dataset_name}_{dataset_type}_{graph_nr}_{prep_data_incl_past_residuals}')
+    log_dir = os.path.join('logs', dataset_dimension, dataset_name, dataset_type, model_name,
+                           f'{model_name}_{current_time}_{dataset_dimension}_{dataset_name}_{dataset_type}_{graph_nr}_{prep_data_incl_past_residuals}')
     os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
 
-    model_save_dir = os.path.join('saved_models',dataset_dimension,dataset_name,dataset_type,model_name)
+    model_save_dir = os.path.join('saved_models', dataset_dimension, dataset_name, dataset_type, model_name)
     os.makedirs(model_save_dir, exist_ok=True)
 
     # Log hyperparameters
