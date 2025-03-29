@@ -6,7 +6,7 @@ import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from lib.extract_number_from_filename import extract_number_from_filename
-from create_data_sequences.create_sequences_1 import create_sequences_1_nr, create_sequences_1_wr
+from create_data_sequences.create_sequences_1_3_6_7 import create_sequences_1_nr, create_sequences_1_wr
 import yaml
 
 def prepare_data(config):

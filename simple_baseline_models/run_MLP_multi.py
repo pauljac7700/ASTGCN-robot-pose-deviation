@@ -214,7 +214,7 @@ def evaluate_and_save_results(config, y_test, y_test_pred, residual_variables, m
     r2_list = []
     residuals_dict = {}
 
-    # Compute metrics for each target variable
+    # Compute metrics for each residual variable
     for idx, residual_var in enumerate(residual_variables):
         mse = mean_squared_error(y_test[:, idx], y_test_pred[:, idx])
         rmse = np.sqrt(mse)
@@ -253,7 +253,7 @@ def evaluate_and_save_results(config, y_test, y_test_pred, residual_variables, m
         writer.add_scalar(f"Metrics/{residual_var}/MdAPE", mdape, 0)
         writer.add_scalar(f"Metrics/{residual_var}/R2", r2, 0)
 
-    # Compute mean metrics over all target variables
+    # Compute mean metrics over all residual variables
     mean_metrics = {
         'MSE': np.mean(mse_list),
         'RMSE': np.mean(rmse_list),
@@ -276,7 +276,7 @@ def evaluate_and_save_results(config, y_test, y_test_pred, residual_variables, m
             f.write(f"Metrics for {residual_var}:\n")
             for key, value in metric.items():
                 f.write(f"  {key}: {value:.6f}\n")
-        f.write("\nMean Metrics over all target variables:\n")
+        f.write("\nMean Metrics over all residual variables:\n")
         for key, value in mean_metrics.items():
             f.write(f"  {key}: {value:.6f}\n")
 
@@ -297,6 +297,40 @@ def evaluate_and_save_results(config, y_test, y_test_pred, residual_variables, m
 
     # Log the predictions file as text in TensorBoard (optional)
     writer.add_text("Predictions/DataFrame", df_predictions.head().to_html(), 0)
+
+    # Identify indices for x, y, z values
+    xyz_indices = [idx for idx, residual_var in enumerate(residual_variables) if residual_var in ['x_dif', 'y_dif', 'z_dif']]
+
+    # Calculate Euclidean distance for each sample using only x, y, z values
+    euclidean_distances = np.linalg.norm(y_test[:, xyz_indices] - y_test_pred[:, xyz_indices], axis=1)
+
+    # Calculate Euclidean distance for actual residuals
+    actual_euclidean_distances = np.linalg.norm(y_test[:, xyz_indices], axis=1)
+    
+    # Calculate mean values
+    mean_euclidean = np.mean(euclidean_distances)
+    mean_actual_euclidean = np.mean(actual_euclidean_distances)
+
+    # Create a line plot for Euclidean distances with mean values indicated in the legend
+    plt.figure(figsize=(12, 6))
+    plt.plot(actual_euclidean_distances,
+             label=f'Actual Residuals (Euclidean Distance) - Mean: {mean_actual_euclidean:.2f}',
+             color='green')
+    plt.plot(euclidean_distances,
+             label=f'Difference (Actual - Predicted) - Mean: {mean_euclidean:.2f}',
+             color='blue')
+    plt.title('Euclidean Distance Over Samples')
+    plt.xlabel('Sample Index')
+    plt.ylabel('Euclidean Distance')
+    plt.legend()
+    plt.tight_layout()
+
+    # Save the plot
+    euclidean_plot_filename = f"{model_identifier}_euclidean_distance_plot.png"
+    euclidean_plot_path = os.path.join(results_dir, euclidean_plot_filename)
+    plt.savefig(euclidean_plot_path)
+    plt.close()
+    print(f"Euclidean distance plot saved to {euclidean_plot_path}")
 
     return metrics, mean_metrics
 
@@ -386,7 +420,7 @@ def main():
     model = train_model(config, X_train_scaled, y_train_scaled, writer, n_epochs)
 
     # Save the trained model
-    model_identifier = "mlp_model"
+    model_identifier = "MLP"
     model_file = save_model(config, model, model_identifier, model_save_dir_run, writer)
 
     # Evaluate on test set

@@ -3,8 +3,8 @@ import os
 import numpy as np
 
 # Load the CSV file with explicit indexing
-file_path = 'data/3D_datasets/3D_UR5_v1_random.csv'
-data = pd.read_csv(file_path, delimiter=',', decimal='.', index_col=0)
+file_path = 'data/3D_datasets/3D_UR5_v3_random.csv'
+data = pd.read_csv(file_path, delimiter=',', decimal='.', index_col=None)
 
 # Trim column names to remove leading/trailing spaces
 data.columns = data.columns.str.strip()
@@ -13,7 +13,7 @@ data.columns = data.columns.str.strip()
 print("Column names before renaming:", data.columns.tolist())
 
 # Renaming joint columns
-joint_column_names = ['j1_t', 'j2_t', 'j3_t', 'j4_t', 'j5_t', 'j6_t']
+joint_column_names = ['j1_target','j2_target','j3_target','j4_target','j5_target','j6_target'] #['j1_t', 'j2_t', 'j3_t', 'j4_t', 'j5_t', 'j6_t'] 
 new_joint_names = [f'joint_{i+1}' for i in range(len(joint_column_names))]
 column_rename_mapping = dict(zip(joint_column_names, new_joint_names))
 

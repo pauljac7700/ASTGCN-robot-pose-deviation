@@ -2,16 +2,16 @@
 
 # Dataset preparation settings
 random_seed: 42
-dataset_dimension: '3D'  # "6D" or "3D"
-dataset_name: 'UR5_v2'
-dataset_type: 'grid'  # "random" or "grid"
+dataset_dimension: '6D'  # "6D" or "3D"
+dataset_name: 'Landgraf'
+dataset_type: 'random'  # "random" or "grid"
 num_joints: 6
 
 
 locate_data_file: 'data/dfs_keyword.yaml'
 prep_data_incl_past_residuals: False  # True or False
 scalers_file: 'data/scalers.joblib'
-adjacency_matrix_file: 'data/adjacency_matrix1.npy'
+adjacency_matrix_file: 'data/adjacency_matrix_1.npy'
 
 # Target pose variables for multi
 target_pose_variables:
@@ -51,8 +51,8 @@ model:
 training:
   batch_size: 16
   num_epochs: 100
-  learning_rate: 0.0001
-  weight_decay: 0.01
+  learning_rate: 0.001
+  weight_decay: 0.0001
   patience: 15           # For early stopping
 
 

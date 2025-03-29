@@ -2,19 +2,23 @@
 
 # Dataset preparation settings
 random_seed: 42
-dataset_dimension: '3D'  # "6D" or "3D"
-dataset_name: 'UR5_v2'
-dataset_type: 'grid'  # "random" or "grid"
+dataset_dimension: '6D'  # "6D" or "3D"
+dataset_name: 'Landgraf'
+dataset_type: 'random'  # "random" or "grid"
 num_joints: 6
 
 
 locate_data_file: 'data/dfs_keyword.yaml'
 prep_data_incl_past_residuals: False  # True or False
 scalers_file: 'data/scalers.joblib'
-adjacency_matrix_file: 'data/adjacency_matrix1.npy'
+adjacency_matrix_file: 'data/adjacency_matrix_5_6D.npy'  # Path to the adjacency matrix file
+
+#Test on different data
+test_on_different_data: False  # True or False
+test_dataset_type: 'random'  # "random" or "grid"
 
 # Data splitting ratios
-test_size: 0.20
+test_size: 0.15
 val_size: 0.15
 
 # Target pose variables for multi
@@ -49,7 +53,7 @@ residual_variables:
 single_residual_variable: 'z_dif'
 
 # Ablation model to use
-ablation_model: 'multi_no_attention'  # 'multi_no_attention' or 'multi_no_spatial' or 'multi_no_temporal'
+ablation_model: 'multi_no_temporal'  # 'multi_no_attention' or 'multi_no_spatial' or 'multi_no_temporal'
 
 # Model hyperparameters
 model:
@@ -61,16 +65,15 @@ model:
   nb_time_filter: 32 #original 64
   time_strides: 1
   num_for_predict: 1
-  len_input: 10
-  num_of_vertices: 8
+  len_input: 1
 
 # Training hyperparameters
 training:
   learning_rate: 0.001
-  weight_decay: 0.001
+  weight_decay: 0.0001
   batch_size: 16
-  num_epochs: 50 #100
-  patience: 10 #15
+  num_epochs: 100 #100
+  patience: 20 #15
 # Device configuration
 device: 'cuda'  # or 'cpu' if GPU is not available
 

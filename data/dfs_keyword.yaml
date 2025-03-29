@@ -11,4 +11,7 @@
     random: "3D_UR5_v1_random_cleaned.csv"
   UR5_v2:
     grid: "3D_UR5_v2_grid_cleaned.csv"
+  UR5_v3:
+    grid: "3D_UR5_v3_grid_cleaned.csv"
+    random: "3D_UR5_v3_random_cleaned.csv"
 

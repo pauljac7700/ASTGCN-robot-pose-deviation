@@ -2,26 +2,19 @@ import os
 import re
 import numpy as np
 import pandas as pd
+from get_folder_structure import print_folder_structure
+from typing import List, Dict, Union
+from pandas import DataFrame
 
-# Define the base folder and excluded models
-base_folder = "/Users/paulj/Documents/Double_Degree_Tsinghua/Master_thesis/code/my_code/ASTGCN-2019-pytorch/results"
-excluded_models = ["ASTGCN_single", "ASTGCN_new_graph", "MLP_single"]
+base_folder: str = "results"
+max_depth: int = 3  # define the depth you care about
 
-# Path to the best runs file
-best_runs_file_path = "results/best_runs.txt"
-model_run_map = {}
+print(f"Folder structure of: {base_folder}")
+print_folder_structure(base_folder, max_depth=max_depth)
 
-# Read the best runs file and populate the model_run_map
-with open(best_runs_file_path, "r") as f:
-    for line in f:
-        parts = line.strip().split(",")
-        if len(parts) < 2:
-            continue  # Skip malformed lines
-        model_part = parts[0].split(":", 1)[1].strip()
-        run_part = parts[1].split(":", 1)[1].strip()
-        model_run_map[model_part] = run_part
+excluded_models: List[str] = ["ASTGCN_single", "MLP_single"]
 
-def extract_short_metric_name(metric_str):
+def extract_short_metric_name(metric_str: str) -> str:
     """
     Extracts the short metric name from the metric string.
     E.g., "Mean Squared Error (MSE)" -> "MSE"
@@ -33,83 +26,82 @@ def extract_short_metric_name(metric_str):
         short_name = match.group(1).strip()
     else:
         short_name = metric_str.strip()
-    
-    # Unify R² to R2
-    short_name = short_name.replace("R²", "R2")
-    return short_name
+    return short_name.replace("R²", "R2")
 
-all_data = []
-
-# Iterate through each model and its best run to extract metrics
-for model_name, run_name in model_run_map.items():
-    if model_name in excluded_models:
-        continue
-    run_path = os.path.join(base_folder, model_name, run_name)
-    if not os.path.isdir(run_path):
-        continue
-
-    # Find the metrics file
-    metrics_file = None
-    for f in os.listdir(run_path):
-        if f.endswith("metrics.txt"):
-            metrics_file = os.path.join(run_path, f)
-            break
-
-    if not metrics_file:
-        continue
-
-    with open(metrics_file, 'r') as mf:
-        lines = [l.rstrip() for l in mf.readlines()]
-
-    model_data = {"Model": model_name, "Best Run": run_name}
-    current_dimension = None
-
-    for line in lines:
-        if line.startswith("Metrics for "):
-            # Example: "Metrics for x_dif:"
-            dim = line.split()[-1].replace(":", "")
-            current_dimension = dim
-        elif "Mean Metrics over all target variables:" in line:
-            current_dimension = "mean"
-        elif current_dimension is not None and ":" in line:
-            metric_part, val_part = line.split(":", 1)
-            metric_part = metric_part.strip()
-            val_str = val_part.strip().replace("%", "")
-            try:
-                val = float(val_str)
-            except ValueError:
+def process_best_run_file(best_run_file_path: str, excluded: List[str]) -> DataFrame:
+    """
+    Reads a best_runs.txt file and extracts metrics for each model-run.
+    Returns a DataFrame with metrics as rows and models as columns.
+    """
+    parent_dir = os.path.dirname(best_run_file_path)
+    model_run_map: Dict[str, str] = {}
+    with open(best_run_file_path, "r") as f:
+        for line in f:
+            parts = line.strip().split(",")
+            if len(parts) < 2:
                 continue
+            model_part = parts[0].split(":", 1)[1].strip()
+            run_part = parts[1].split(":", 1)[1].strip()
+            model_run_map[model_part] = run_part
 
-            short_name = extract_short_metric_name(metric_part)
-            key = f"{current_dimension}_{short_name}"
-            model_data[key] = val
+    all_data = []
+    for model_name, run_name in model_run_map.items():
+        if model_name in excluded:
+            continue
+        run_path = os.path.join(parent_dir, model_name, run_name)
+        if not os.path.isdir(run_path):
+            continue
 
-    all_data.append(model_data)
+        # Find the metrics file in the run directory
+        metrics_file = None
+        for fname in os.listdir(run_path):
+            if fname.endswith("metrics.txt"):
+                metrics_file = os.path.join(run_path, fname)
+                break
+        if not metrics_file:
+            continue
 
-# Create DataFrame from the collected data
-df = pd.DataFrame(all_data)
-save_excel_path = "results/all_models_metrics_compared.xlsx"
+        with open(metrics_file, "r") as mf:
+            lines = [l.rstrip() for l in mf.readlines()]
 
-# Set 'Model' as index and transpose the DataFrame
-df.set_index('Model', inplace=True)
-df = df.transpose()
+        model_data: Dict[str, Union[float, str]] = {"Model": model_name, "Best Run": run_name}
+        current_dimension = None
+        for line in lines:
+            if line.startswith("Metrics for "):
+                dim = line.split()[-1].replace(":", "")
+                current_dimension = dim
+            elif "Mean Metrics over all target variables:" in line:
+                current_dimension = "mean"
+            elif current_dimension is not None and ":" in line:
+                metric_part, val_part = line.split(":", 1)
+                metric_part = metric_part.strip()
+                val_str = val_part.strip().replace("%", "")
+                try:
+                    val = float(val_str)
+                except ValueError:
+                    continue
+                short_name = extract_short_metric_name(metric_part)
+                key = f"{current_dimension}_{short_name}"
+                model_data[key] = val
+        all_data.append(model_data)
+    df = pd.DataFrame(all_data)
+    if not df.empty:
+        df.set_index("Model", inplace=True)
+        df = df.transpose()
+    return df
 
-# Define the desired order of models
-model_order = ["HA", "VARX", "MLP_multi", "ConvLSTM", "TGCN", "ASTGCN_multi", 
-               "ASTGCN_multi_no_attention", "ASTGCN_multi_no_spatial", "ASTGCN_multi_no_temporal"]
-
-# Reorder the columns based on the specified model order
-# Handle cases where some models might not be present
-existing_models = [model for model in model_order if model in df.columns]
-df = df[existing_models]
-
-# Initialize the Excel writer with xlsxwriter engine
-with pd.ExcelWriter(save_excel_path, engine='xlsxwriter') as writer:
-    df.to_excel(writer, sheet_name='Direct Model Comparison', startrow=1, header=False)
+def write_df_to_sheet(df: DataFrame, sheet_name: str, writer: pd.ExcelWriter, model_order: List[str]) -> None:
+    """
+    Writes the given DataFrame to a sheet in the Excel writer with formatting.
+    The DataFrame is assumed to have metrics as rows and models as columns.
+    """
+    # Reorder columns if possible
+    existing_models = [model for model in model_order if model in df.columns]
+    df = df[existing_models]
+    df.to_excel(writer, sheet_name=sheet_name, startrow=1, header=False)
     workbook = writer.book
-    worksheet = writer.sheets['Direct Model Comparison']
+    worksheet = writer.sheets[sheet_name]
 
-    # Define formats
     header_format = workbook.add_format({
         'bold': True,
         'text_wrap': True,
@@ -117,21 +109,18 @@ with pd.ExcelWriter(save_excel_path, engine='xlsxwriter') as writer:
         'fg_color': '#D7E4BC',
         'border': 1
     })
-
     center_align_format = workbook.add_format({
         'align': 'center',
         'valign': 'middle',
         'border': 1
     })
-
     right_border_format = workbook.add_format({
         'align': 'center',
         'valign': 'middle',
         'border': 1,
-        'right': 2,  # Thicker right border
-        'left': 2,  # Thicker left border
+        'right': 2,
+        'left': 2,
     })
-
     highlight_format = workbook.add_format({
         'bg_color': '#FFFF00',
         'align': 'center',
@@ -139,66 +128,78 @@ with pd.ExcelWriter(save_excel_path, engine='xlsxwriter') as writer:
         'border': 1
     })
 
-    # Write the header
-    for col_num, value in enumerate(['Metric'] + list(df.columns)):
+    # Write header row
+    col_headers = ['Metric'] + list(df.columns)
+    for col_num, value in enumerate(col_headers):
         worksheet.write(0, col_num, value, header_format)
 
-    # Apply formatting to all cells
-    (max_row, max_col) = df.shape
-
-    for row_num in range(1, max_row + 1):  # Include header row (row 0)
-        # Apply right border format to the first column ('Metric' column)
+    max_row, max_col = df.shape  # max_row: number of metric rows, max_col: number of models
+    for row_num in range(1, max_row + 1):
+        # Write the metric name in the first column
         worksheet.write(row_num, 0, df.index[row_num - 1], right_border_format)
-
-        # Apply center alignment to the remaining cells in each row
+        # Write data cells
         for col_num in range(1, max_col + 1):
             worksheet.write(row_num, col_num, df.iloc[row_num - 1, col_num - 1], center_align_format)
 
     # Set column widths
-    worksheet.set_column(0, 0, 20)  # Set wider width for the first column
+    worksheet.set_column(0, 0, 20)
     for col_num in range(1, max_col + 1):
         worksheet.set_column(col_num, col_num, 25)
 
-    # Freeze the header row
+    # Freeze header row
     worksheet.freeze_panes(1, 0)
 
-    # Convert the DataFrame index to a list for iteration
+    # Conditional formatting: highlight best values per metric row
     metrics = df.index.tolist()
-    
-    # Iterate through each metric to apply conditional formatting
     for i, metric in enumerate(metrics):
-        # Skip the second row (Excel row index 2)
         if i == 0:
             continue
-        
-        row_num = i + 1  # Excel rows are 1-indexed and header is row 1
-        # Determine if the metric is an R2 metric
+        row_num = i + 1
         is_r2 = 'R2' in metric
-        
         row_values = df.iloc[i].values
-        
-        if is_r2:
-            # Highlight the cell with the highest value
-            best_idx = np.argmax(row_values)
-        else:
-            # Highlight the cell with the lowest value
-            best_idx = np.argmin(row_values)
-        
-        # Calculate the Excel column (0-indexed)
-        col_num = best_idx + 1  # +1 because first column is Metric
-        
-        # Get the cell value
+        best_idx = np.argmax(row_values) if is_r2 else np.argmin(row_values)
+        col_num = best_idx + 1  # offset for metric column
         cell_value = df.iloc[i, best_idx]
-        
-        # Write the cell with the highlight format
         worksheet.write(row_num, col_num, cell_value, highlight_format)
-    
-    # Add table without additional formatting since header is already formatted
+
     worksheet.add_table(0, 0, max_row, max_col, {
         'columns': [{'header': 'Metric'}] + [{'header': model} for model in df.columns],
-        'style': 'Table Style Light 9',  # Choose a light table style
+        'style': 'Table Style Light 9',
         'banded_rows': False,
-
     })
+
+def safe_sheet_name(name: str) -> str:
+    """
+    Returns a safe Excel sheet name (max 31 chars, no forbidden characters).
+    """
+    forbidden = r'[]:*?/\\'
+    for ch in forbidden:
+        name = name.replace(ch, "_")
+    return name[:31]
+
+# Find all files ending with 'best_runs.txt' under the base folder.
+best_run_files: List[str] = []
+for root, dirs, files in os.walk(base_folder):
+    for file in files:
+        if file.endswith("best_runs.txt"):
+            best_run_files.append(os.path.join(root, file))
+
+# Define desired model order for columns.
+model_order: List[str] = [
+    "HA", "VARX", "MLP_multi", "ConvLSTM", "TGCN", "ASTGCN_multi",
+    "ASTGCN_multi_no_attention", "ASTGCN_multi_no_spatial", "ASTGCN_multi_no_temporal"
+]
+
+save_excel_path = os.path.join(base_folder, "all_models_metrics_compared.xlsx")
+with pd.ExcelWriter(save_excel_path, engine="xlsxwriter") as writer:
+    for best_run_file in best_run_files:
+        df = process_best_run_file(best_run_file, excluded_models)
+        # Skip if no data was extracted.
+        if df.empty:
+            continue
+        # Generate a sheet name from the relative path of the best_run file.
+        rel_dir = os.path.relpath(os.path.dirname(best_run_file), base_folder)
+        sheet_name = safe_sheet_name(rel_dir.replace(os.sep, "_") or "root")
+        write_df_to_sheet(df, sheet_name, writer, model_order)
 
 print(f"Aggregated metrics saved and formatted in {save_excel_path}")
