@@ -7,12 +7,10 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import numpy as np
 import yaml
-import joblib
-from model.TGCN import TGCNWithGlobalOutput
+from model.ASTGCN_multi import make_model
 from lib.extract_number_from_filename import extract_number_from_filename
-from lib.compare_yaml_configs import compare_yaml_configs
+from lib.get_adjacency_matrix_size import get_adjacency_matrix_size
 import joblib
-
 
 def train_model(config):
 
@@ -33,11 +31,16 @@ def train_model(config):
         prep_data_incl_past_residuals = 'wr'
         print("Including past residuals in input features.")
     else:
-        prep_data_incl_past_residuals = 'nr'
+        prep_data_incl_residuals = 'nr'
         print("Excluding past residuals from input features.")
+        prep_data_incl_past_residuals = 'nr'  # For consistency
 
     graph_nr = extract_number_from_filename(config['adjacency_matrix_file'])
     print(f"Graph number: {graph_nr}")
+
+    # Get the number of nodes from the adjacency matrix
+    num_nodes = get_adjacency_matrix_size(config)
+    print(f"Number of nodes: {num_nodes}")
 
     train_data = np.load(f'data/train_data_{graph_nr}_{prep_data_incl_past_residuals}.npz')
     val_data = np.load(f'data/val_data_{graph_nr}_{prep_data_incl_past_residuals}.npz')
@@ -48,12 +51,7 @@ def train_model(config):
 
     # Load scalers (if needed)
     scalers = joblib.load(config['scalers_file'])
-    # No need to apply scalers here since data is already scaled
-
-    # Process inputs to be compatible with TGCN model
-    # TGCN now expects inputs of shape (batch_size, seq_len, num_nodes, in_channels)
-    inputs_train = inputs_train.transpose(0, 3, 1, 2)  # Shape: (num_samples, seq_len, num_nodes, in_channels)
-    inputs_val = inputs_val.transpose(0, 3, 1, 2)
+    # Data is already scaled, so no transformation is applied here
 
     # Convert to PyTorch tensors
     inputs_train_tensor = torch.from_numpy(inputs_train).float()
@@ -69,31 +67,50 @@ def train_model(config):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
 
-    # Load adjacency matrix
+    # Load adjacency matrix (as NumPy array)
     adj_mx = np.load(config['adjacency_matrix_file'])
 
     # Device configuration
     DEVICE = torch.device(config['device'] if torch.cuda.is_available() else 'cpu')
 
-    # Number of residuals
+    # Number of residuals from config (target variables)
     num_residuals = len(config['residual_variables'][dataset_dimension])
 
-    # Set the in_channels and residual_dim depending on the underlying graph
+    # Set in_channels and residual_dim based on the graph structure
     if graph_nr in [1, 3, 6, 7]:
         in_channels = config['model'][f'in_channels_{dataset_dimension}']
+        residual_dim = num_residuals
     elif graph_nr == 2:
         in_channels = 1
+        residual_dim = 1
+    elif graph_nr in [4, 5]:
+        in_channels = 3
+        residual_dim = 3  # Each residual node has 3 features; there are two such nodes => target shape (B, 6)
 
     # Initialize model
-    hidden_dim = config['model']['hidden_dim']
-    tgcn_model = TGCNWithGlobalOutput(adj=adj_mx, in_channels=in_channels, hidden_dim=hidden_dim, num_residuals=num_residuals)
-    tgcn_model.to(DEVICE)
+    model = make_model(
+        DEVICE=DEVICE,
+        nb_block=config['model']['nb_block'],
+        in_channels=in_channels,
+        K=config['model']['K'],
+        nb_chev_filter=config['model']['nb_chev_filter'],
+        nb_time_filter=config['model']['nb_time_filter'],
+        time_strides=config['model']['time_strides'],
+        adj_mx=adj_mx,
+        num_for_predict=config['model']['num_for_predict'],
+        len_input=config['model']['len_input'] + 1,  # Extended input sequence
+        num_of_vertices=num_nodes,
+        residual_dim=residual_dim
+    )
+    model.to(DEVICE)
 
     # Loss function and optimizer
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(tgcn_model.parameters(),
-                           lr=config['training']['learning_rate'],
-                           weight_decay=config['training']['weight_decay'])
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=config['training']['learning_rate'],
+        weight_decay=config['training']['weight_decay']
+    )
 
     # TensorBoard setup
     current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -116,59 +133,85 @@ def train_model(config):
     # Training loop
     num_epochs = config['training']['num_epochs']
     for epoch in range(num_epochs):
-        tgcn_model.train()
+        model.train()
         train_loss = 0.0
         for batch_idx, (inputs_batch, residuals_batch) in enumerate(train_loader):
-            inputs_batch = inputs_batch.to(DEVICE)  # Shape: (batch_size, seq_len, num_nodes, in_channels)
-            residuals_batch = residuals_batch.to(DEVICE)  # Shape: (batch_size, num_targets)
+            inputs_batch = inputs_batch.to(DEVICE)
+            residuals_batch = residuals_batch.to(DEVICE)
 
             optimizer.zero_grad()
 
-            # Forward pass
-            outputs = tgcn_model(inputs_batch)  # Outputs shape: (batch_size, num_targets)
+            # Forward pass: outputs shape: (B, num_nodes, num_for_predict, residual_dim)
+            outputs = model(inputs_batch)
 
-            # Compute loss
-            loss = criterion(outputs, residuals_batch)
-
-            # Backward pass and optimization
+            # Branch extraction based on graph structure
+            if graph_nr in [1, 3, 6, 7]:
+                # For these graphs, assume the residual node is at index num_joints+1.
+                outputs_residual_node = outputs[:, num_joints+1, :, :]
+                outputs_residual_node = outputs_residual_node.squeeze(1)  # Shape: (B, residual_dim)
+            elif graph_nr == 2:
+                # For graph 2, extract multiple residual nodes.
+                num_residual_nodes = (num_nodes - num_joints) // 2
+                outputs_residual_node = outputs[:, num_joints:num_joints+num_residual_nodes, :, :]
+                if config['model']['num_for_predict'] == 1:
+                    outputs_residual_node = outputs_residual_node.squeeze(2).squeeze(-1)  # Shape: (B, num_residual_nodes)
+            elif graph_nr in [4, 5]:
+                # For graphs 4 and 5, the graph splits residuals into two nodes:
+                # one for position and one for orientation.
+                # These are at indices num_joints+2 and num_joints+3.
+                outputs_residual_node = outputs[:, num_joints+2:num_joints+4, :, :]
+                if config['model']['num_for_predict'] == 1:
+                    # Remove the time dimension and the last singleton dimension.
+                    outputs_residual_node = outputs_residual_node.squeeze(2).squeeze(-1)  # Shape: (B, 2, residual_dim)
+                    # Flatten the two residual nodes into a single vector per sample.
+                    outputs_residual_node = outputs_residual_node.reshape(outputs_residual_node.shape[0], -1)
+                    # For residual_dim = 3, this gives shape (B, 6)
+            # Compute loss between predictions and targets
+            loss = criterion(outputs_residual_node, residuals_batch)
             loss.backward()
             optimizer.step()
 
-            # Accumulate training loss
             train_loss += loss.item() * inputs_batch.size(0)
 
-        # Calculate average training loss for the epoch
         train_loss /= len(train_loader.dataset)
 
         # Validation loop
-        tgcn_model.eval()
+        model.eval()
         val_loss = 0.0
         with torch.no_grad():
             for inputs_batch, residuals_batch in val_loader:
                 inputs_batch = inputs_batch.to(DEVICE)
                 residuals_batch = residuals_batch.to(DEVICE)
 
-                outputs = tgcn_model(inputs_batch)
-
-                loss = criterion(outputs, residuals_batch)
+                outputs = model(inputs_batch)
+                if graph_nr in [1, 3, 6, 7]:
+                    outputs_residual_node = outputs[:, num_joints+1, :, :].squeeze(1)
+                elif graph_nr == 2:
+                    num_residual_nodes = (num_nodes - num_joints) // 2
+                    outputs_residual_node = outputs[:, num_joints:num_joints+num_residual_nodes, :, :]
+                    if config['model']['num_for_predict'] == 1:
+                        outputs_residual_node = outputs_residual_node.squeeze(2).squeeze(-1)
+                elif graph_nr in [4, 5]:
+                    outputs_residual_node = outputs[:, num_joints+2:num_joints+4, :, :]
+                    if config['model']['num_for_predict'] == 1:
+                        outputs_residual_node = outputs_residual_node.squeeze(2).squeeze(-1)
+                        outputs_residual_node = outputs_residual_node.reshape(outputs_residual_node.shape[0], -1)
+                loss = criterion(outputs_residual_node, residuals_batch)
                 val_loss += loss.item() * inputs_batch.size(0)
         val_loss /= len(val_loader.dataset)
 
-        # Log average losses to TensorBoard
         writer.add_scalar('Loss/train_epoch', train_loss, epoch)
         writer.add_scalar('Loss/val_epoch', val_loss, epoch)
 
-        # Early stopping check
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             epochs_no_improve = 0
 
-            # Save the best model
             saved_model_name = f"{model_name}_best_{graph_nr}_{prep_data_incl_past_residuals}_{current_time}.pth"
             save_path = os.path.join(model_save_dir, saved_model_name)
             torch.save({
                 'epoch': epoch + 1,
-                'model_state_dict': tgcn_model.state_dict(),
+                'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'train_loss': train_loss,
                 'val_loss': val_loss,
@@ -179,23 +222,15 @@ def train_model(config):
         else:
             epochs_no_improve += 1
             print(f"Epoch {epoch+1}/{num_epochs}, Training Loss: {train_loss:.6f}, Validation Loss: {val_loss:.6f} - No Improvement")
-
             if epochs_no_improve >= patience:
                 print("Early stopping triggered!")
                 break
 
-    # Finalize TensorBoard logging
-    metrics = {'hparam/val_loss': best_val_loss}
+    metrics = {'hparam/val_loss': val_loss}
     writer.add_hparams(hparams, metrics)
     writer.close()
 
-
 if __name__ == "__main__":
-    # Load configuration
-    with open('config_TGCN.yaml') as f:
+    with open('config_ASTGCN.yaml') as f:
         config = yaml.safe_load(f)
-    with open('config_ASTGCN.yaml', 'r') as f:
-        config_ASTGCN = yaml.safe_load(f)
-    compare_yaml_configs(config, config_ASTGCN)
-
     train_model(config)

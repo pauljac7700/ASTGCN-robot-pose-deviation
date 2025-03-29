@@ -1,0 +1,74 @@
+# config_Conv_LSTM.yaml
+
+# Dataset preparation settings
+random_seed: 42
+dataset_dimension: '3D'  # or "3D"
+dataset_name: 'UR5_v2'
+dataset_type: 'grid'  # or "grid"
+num_joints: 6
+prep_data_incl_past_residuals: True  # or False
+
+# Path to the scalers file
+scalers_file: 'data/scalers.joblib'
+
+# Target pose variables for multi
+target_pose_variables:
+  6D:
+    - x_t
+    - y_t
+    - z_t
+    - rx_t
+    - ry_t
+    - rz_t
+  3D:
+  - x_t
+  - y_t
+  - z_t
+
+# Pose residual variables for multi
+residual_variables:
+  6D:
+    - x_dif
+    - y_dif
+    - z_dif
+    - rx_dif
+    - ry_dif
+    - rz_dif
+  3D:
+  - x_dif
+  - y_dif
+  - z_dif
+
+# Model parameters
+model:
+  3D:
+    input_dim: 3              # Number of input channels/features per node
+    output_dim: 3             # Number of pose dimensions to predict
+  6D:
+    input_dim: 6              # Number of input channels/features per node
+    output_dim: 6             # Number of pose dimensions to predict
+  hidden_dim: [64, 64]        # Hidden dimensions for each ConvLSTM layer
+  kernel_size: 
+    - [3, 3]                      # Kernel size for first ConvLSTM layer
+    - [3, 3]                      # Kernel size for second ConvLSTM layer
+  num_layers: 2               # Number of ConvLSTM layers
+  num_for_predict: 1          # Number of future steps to predict
+  batch_first: true           # Whether input and output tensors are provided as (batch, time, ...)
+  bias: true                  # Whether to include bias in ConvLSTM layers
+  return_all_layers: false    # Whether to return outputs from all ConvLSTM layers
+
+# Training parameters
+training:
+  batch_size: 16
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.001        # Optional: Include if you plan to use weight decay
+  patience: 10                # For early stopping
+
+# Device configuration
+device: 'cuda'                 # 'cuda', 'cpu', or 'mps'
+
+# model names
+model_name:
+  multi: 'ConvLSTM'
+
