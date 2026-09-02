@@ -1,3 +1,10 @@
+"""Standalone: clean the recorded 3D UR5 measurements into the training schema.
+
+Renames the raw joint and pose columns, drops incomplete rows and writes a
+``_cleaned`` CSV next to the input. The input path is set at the top of the file
+and is meant to be edited before running. Run directly; nothing imports it.
+"""
+
 import pandas as pd
 import os
 import numpy as np

@@ -1,3 +1,9 @@
+"""Read the node count from the configured adjacency matrix.
+
+The model's input dimensions follow from the graph, so this is resolved once at
+startup rather than being duplicated in every config.
+"""
+
 import numpy as np
 
 def get_adjacency_matrix_size(config) -> int:

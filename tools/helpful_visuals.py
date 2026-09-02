@@ -1,3 +1,9 @@
+"""Standalone: draw the explanatory figure of the graph over the kinematic chain.
+
+Produces the diagram showing joints, end-effector and error node across the input
+window, used to explain the graph layout. Run directly; nothing imports it.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 

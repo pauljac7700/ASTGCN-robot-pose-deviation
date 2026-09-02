@@ -1,4 +1,14 @@
-# ASTGCN_multi.py
+"""Multi-target ASTGCN: the main model of the paper.
+
+Spatial attention, temporal attention and Chebyshev graph convolution stacked into
+ASTGCN blocks, operating on a graph whose nodes are the robot's joints plus the
+end-effector and the residual error. Tensors flow as ``(batch, nodes, features,
+timesteps)`` throughout; each layer documents its own shapes.
+
+Adapted for robot pose compensation from Guo et al., "Attention Based
+Spatial-Temporal Graph Convolutional Networks for Traffic Flow Forecasting",
+AAAI 2019.
+"""
 
 import torch
 import torch.nn as nn

@@ -1,4 +1,9 @@
-# evaluation_metrics.py
+"""Per-axis evaluation metrics and their formatting for the results files.
+
+Computes the error statistics reported in the paper for each pose component
+separately, since position and orientation errors differ by an order of magnitude
+and a single aggregate number would hide that.
+"""
 
 import numpy as np
 

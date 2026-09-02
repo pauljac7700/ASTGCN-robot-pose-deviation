@@ -1,4 +1,10 @@
 # -*- coding:utf-8 -*-
+"""Single-target ASTGCN: residual carried by one node rather than several.
+
+Structurally identical to ``ASTGCN_multi`` apart from the output head, and used for
+the 3D UR5 experiments where only position error is predicted.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

@@ -1,3 +1,10 @@
+"""Diff two YAML configurations and report where they disagree.
+
+Used by the baseline scripts to check themselves against ``config_ASTGCN.yaml``, so
+a baseline cannot silently be trained on different splits or window lengths than
+the model it is being compared with.
+"""
+
 def compare_yaml_configs(config1, config2):
     """
     Compare two YAML config files and raise an error if they do not match.

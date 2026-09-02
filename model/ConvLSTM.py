@@ -1,4 +1,9 @@
-# ConvLSTM.py
+"""ConvLSTM baseline.
+
+A convolutional LSTM over the same input window, with no graph structure at all.
+Included so the reported improvement can be attributed to modelling the kinematic
+chain rather than merely to using a sequence model.
+"""
 
 import torch.nn as nn
 import torch

@@ -1,4 +1,9 @@
-# ASTGCN_no_temporal.py
+"""Ablation: ASTGCN without temporal attention.
+
+Spatial attention is retained. The gap against the full model isolates the value of
+weighting timesteps, which is where effects with memory such as thermal drift and
+control lag would show up.
+"""
 
 import torch
 import torch.nn as nn

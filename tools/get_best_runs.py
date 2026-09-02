@@ -1,3 +1,8 @@
+"""Standalone: locate the best checkpoint for each configuration.
+
+Run directly; nothing imports it.
+"""
+
 import os
 from typing import Dict, List, Optional, Tuple
 from get_folder_structure import print_folder_structure

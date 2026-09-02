@@ -1,3 +1,10 @@
+"""Standalone: clean the recorded 6D Barrett WAM measurements into the training schema.
+
+The 6D counterpart of ``get_clean_own_3D_df.py``, producing the ``_cleaned`` CSVs
+under ``data/6D_datasets/``. The input path is set at the top of the file. Run
+directly; nothing imports it.
+"""
+
 import pandas as pd
 import os
 import numpy as np

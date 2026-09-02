@@ -1,4 +1,9 @@
-# ASTGCN_no_attention.py
+"""Ablation: ASTGCN with both attention mechanisms removed.
+
+Keeps the Chebyshev graph convolution and the temporal convolution but drops
+spatial and temporal attention, so the gap against the full model measures what
+attention contributes.
+"""
 
 import torch
 import torch.nn as nn

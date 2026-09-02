@@ -1,4 +1,9 @@
-# TGCN.py
+"""TGCN baseline: graph convolution with a GRU, no attention.
+
+Shares the ASTGCN's graph but replaces the attention-weighted spatio-temporal
+blocks with a gated recurrent cell, so the difference between the two isolates the
+attention mechanism specifically.
+"""
 
 import torch
 import torch.nn as nn

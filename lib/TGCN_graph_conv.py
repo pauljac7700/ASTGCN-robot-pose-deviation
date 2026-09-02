@@ -1,3 +1,10 @@
+"""Normalised Laplacian with self-loops, for the TGCN baseline.
+
+Kept separate from ``lib/utils`` because TGCN needs the symmetric normalisation
+with added self-loops, whereas the ASTGCN path uses the scaled Laplacian and its
+Chebyshev expansion.
+"""
+
 import numpy as np
 import scipy.sparse as sp
 import torch

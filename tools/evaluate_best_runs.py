@@ -1,3 +1,9 @@
+"""Standalone: summarise the best checkpoints across training runs.
+
+Reads the saved runs, ranks them by validation loss and writes a comparison. Run
+directly; nothing imports it.
+"""
+
 import os
 import re
 import numpy as np

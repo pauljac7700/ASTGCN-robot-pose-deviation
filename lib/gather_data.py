@@ -1,4 +1,9 @@
-#gather_data
+"""Collect recorded robot poses into a single tidy dataframe.
+
+Merges the per-run measurement files into the schema the preprocessing scripts
+expect.
+"""
+
 import random
 import math
 import numpy as np

@@ -55,7 +55,9 @@ collects every model side by side.
 | `simple_baseline_models/` | MLP, historical average and VARX baselines |
 | `prep_data_*.py`, `create_data_sequences/` | Preprocessing and sequence construction |
 | `build_graphs/` | Graph topologies over the kinematic chain, and their visualisations |
-| `lib/`, `model/` | Shared utilities and model definitions |
+| `model/` | Model definitions: the ASTGCN, its ablations, and the TGCN and ConvLSTM baselines |
+| `lib/` | Importable helpers: graph Laplacians, masked metrics, config checks |
+| `tools/` | Standalone scripts, run directly and imported by nothing: data cleaning, run comparison, figures |
 | `config_*.yaml` | One config per model |
 | `data/` | UR5 (3D) and Barrett WAM (6D) datasets, raw and cleaned |
 | `results/` | Evaluation output, per-model metrics and plots |

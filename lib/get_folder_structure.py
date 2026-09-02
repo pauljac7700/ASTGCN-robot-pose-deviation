@@ -1,3 +1,5 @@
+"""Walk a directory and return its structure, for run bookkeeping."""
+
 import os
 
 def print_folder_structure(root_path: str, max_depth: int = None, prefix: str = ""):

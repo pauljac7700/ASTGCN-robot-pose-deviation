@@ -1,4 +1,10 @@
 # -*- coding:utf-8 -*-
+"""Masked error metrics that ignore missing values.
+
+MAE, MSE, RMSE and MAPE variants that skip entries equal to ``null_val``, so that
+gaps in the recorded pose data do not silently distort the reported error.
+"""
+
 
 import numpy as np
 import torch

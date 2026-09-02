@@ -1,3 +1,9 @@
+"""Pull the graph variant number out of an adjacency matrix filename.
+
+The graph topology is selected by filename, and the evaluation code needs the
+variant number to know which node holds the residual.
+"""
+
 import re
 
 def extract_number_from_filename(filename):

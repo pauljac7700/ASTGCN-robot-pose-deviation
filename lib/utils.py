@@ -1,3 +1,10 @@
+"""Graph and normalisation utilities shared by every model.
+
+Adjacency matrix loading, the scaled Laplacian and Chebyshev polynomial expansion
+used by the graph convolutions, feature normalisation and its inverse, and the
+shared validation and prediction loops.
+"""
+
 import os
 import numpy as np
 import torch

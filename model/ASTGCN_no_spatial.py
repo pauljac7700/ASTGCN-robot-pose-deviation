@@ -1,4 +1,9 @@
-# ASTGCN_no_spatial.py
+"""Ablation: ASTGCN without spatial attention.
+
+Temporal attention is retained. Comparing this against the full model isolates the
+value of weighting nodes dynamically, that is, of letting the network decide which
+joints matter for the current pose.
+"""
 
 import torch
 import torch.nn as nn
