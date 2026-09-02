@@ -1,3 +1,9 @@
+"""Build input sequences for the single-residual-node graphs (1, 3, 6, 7).
+
+Produces windows shaped (samples, nodes, features, timesteps) with the residual on
+node ``num_joints + 1``.
+"""
+
 import numpy as np
 
 def create_sequences_1_3_6_7(

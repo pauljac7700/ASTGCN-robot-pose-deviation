@@ -1,3 +1,9 @@
+"""Graph 5: as graph 4, with joints also connected to both target nodes.
+
+The position and orientation split of graph 4, plus the joint-to-target edges that
+graph 4 omits.
+"""
+
 import os
 import numpy as np
 

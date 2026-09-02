@@ -1,3 +1,11 @@
+"""Graph 4: position and orientation carried by separate nodes.
+
+Target and residual are each split in two, one node for (x, y, z) and one for
+(rx, ry, rz), reflecting that position and orientation errors have different units
+and magnitudes. Residual nodes connect to everything; joints do not connect to the
+target nodes.
+"""
+
 import os
 import numpy as np
 

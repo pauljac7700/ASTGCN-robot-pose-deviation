@@ -1,3 +1,9 @@
+"""Build input sequences for graph 2, one residual node per pose dimension.
+
+The residual spans several consecutive nodes starting at ``num_joints`` rather than
+occupying a single node.
+"""
+
 import numpy as np
 import os
 

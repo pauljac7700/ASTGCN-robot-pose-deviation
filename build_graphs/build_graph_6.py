@@ -1,3 +1,12 @@
+"""Graph 6: control experiment with the joint chain randomly shuffled.
+
+Identical to graph 1 except that the order of joints along the chain is permuted,
+destroying the true kinematic ordering while leaving the number of nodes and edges
+unchanged. If the model performs as well on this as on graph 1, then it is not
+exploiting the kinematic structure, and the graph is decoration. Returns the
+shuffled ordering alongside the matrix so a run can be reproduced.
+"""
+
 import numpy as np
 
 def build_adjacency_matrix_6(num_joints: int, seed: int = None) -> tuple[np.ndarray, list[int]]:

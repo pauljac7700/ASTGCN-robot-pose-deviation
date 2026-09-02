@@ -1,3 +1,5 @@
+"""Render graph 4, the position/orientation split topology, as a figure."""
+
 import os
 import sys
 import numpy as np

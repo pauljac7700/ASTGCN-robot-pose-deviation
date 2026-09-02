@@ -1,3 +1,10 @@
+"""Modified Denavit-Hartenberg model of the UR5, and pose conversion helpers.
+
+Defines the MDH kinematic chain used for the geometric calibration stage, plus
+conversions between rotation vectors, rotation matrices, roll-pitch-yaw angles and
+homogeneous transformation matrices. Needs roboticstoolbox and spatialmath.
+"""
+
 from roboticstoolbox import DHRobot, RevoluteMDH
 import numpy as np
 import math

@@ -1,3 +1,5 @@
+"""Render the single-residual-node topologies (graphs 1, 3, 6 and 7) as a figure."""
+
 import os
 import sys
 import numpy as np

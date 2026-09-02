@@ -1,3 +1,10 @@
+"""Graph 7: control experiment with no joint-to-joint edges at all.
+
+Joints connect only to the end-effector and residual nodes, never to each other,
+removing the chain entirely. Together with graph 6 this brackets how much of the
+model's accuracy comes from the topology rather than from the features.
+"""
+
 import numpy as np
 
 def build_adjacency_matrix_7(num_joints: int) -> np.ndarray:

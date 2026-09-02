@@ -1,3 +1,5 @@
+"""Render graph 2, the per-pose-dimension topology, as a figure."""
+
 import os
 import numpy as np
 import networkx as nx

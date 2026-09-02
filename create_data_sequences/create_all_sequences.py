@@ -1,3 +1,10 @@
+"""Dispatch to the sequence builder matching the configured graph variant.
+
+The graph topologies place the residual on different nodes, so each family needs
+its own tensor layout. This picks the right builder from the adjacency matrix
+filename, which is why the graph number is encoded there.
+"""
+
 from create_data_sequences.create_sequences_1_3_6_7 import create_sequences_1_3_6_7
 from create_data_sequences.create_sequences_2 import create_sequences_2
 from create_data_sequences.create_sequences_4_5 import create_sequences_4_5

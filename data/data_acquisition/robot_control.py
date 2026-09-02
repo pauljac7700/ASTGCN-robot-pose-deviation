@@ -1,3 +1,9 @@
+"""Drive a physical UR5 through a list of poses over RTDE.
+
+Only needed to record new data. Requires the ur-rtde package and a reachable
+robot, both commented out of requirements.txt for that reason.
+"""
+
 import rtde_control
 import time
 import pandas as pd

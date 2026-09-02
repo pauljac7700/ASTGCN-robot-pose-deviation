@@ -1,3 +1,5 @@
+"""Render graph 5, the position/orientation split with joint-to-target edges."""
+
 import os
 import sys
 import numpy as np

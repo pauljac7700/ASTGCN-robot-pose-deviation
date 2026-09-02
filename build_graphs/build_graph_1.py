@@ -1,3 +1,10 @@
+"""Graph 1: kinematic chain, plus target-pose node, plus one residual node.
+
+Joints form a sequential chain, every joint also connects to the end-effector
+target node, and everything connects to a single residual node. This is the
+baseline topology the paper's main results use.
+"""
+
 import numpy as np
 
 def build_adjacency_matrix_1(num_joints: int) -> np.ndarray:

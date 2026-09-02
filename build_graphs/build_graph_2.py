@@ -1,3 +1,10 @@
+"""Graph 2: residual and target split into one node per pose dimension.
+
+Instead of a single residual node, there is one per pose dimension (three in 3D,
+six in 6D), fully connected among themselves, with the target pose likewise
+expanded. Lets the network treat each axis separately.
+"""
+
 import numpy as np
 
 def build_adjacency_matrix_2(dataset_dimension: str, num_joints: int) -> np.ndarray:

@@ -1,4 +1,11 @@
-#gather_data
+"""Generate measurement poses and record them into the training CSVs.
+
+Samples the poses to be commanded, whether on a grid or at random, drives them
+through the UR5 model, and writes the commanded and measured values into the CSV
+schema the preprocessing scripts read. Grid poses are used for calibration and
+training, random poses for testing.
+"""
+
 import random
 import math
 import numpy as np

@@ -152,6 +152,12 @@ from different node indices as a result:
   orientation (3 features). With a single prediction step the time dimension is
   squeezed and the two nodes flattened into one 6-feature vector.
 
+Graphs 6 and 7 are controls rather than candidates. Graph 6 keeps every node and
+edge but shuffles the order of joints along the chain, and graph 7 removes the
+joint-to-joint edges entirely. If the model scored as well on those as on graph 1,
+the graph would be decoration rather than structure, so they are the check that
+the topology is doing real work.
+
 ## Citation
 
 If you use this code or the datasets, please cite the paper:

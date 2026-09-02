@@ -1,3 +1,11 @@
+"""Build input sequences for graphs 4 and 5, position and orientation split.
+
+The residual occupies two nodes, three position features and three orientation
+features. With a single prediction step the time dimension is squeezed and the two
+nodes are flattened into one six-feature vector, which is what the evaluation code
+expects.
+"""
+
 import os
 import numpy as np
 

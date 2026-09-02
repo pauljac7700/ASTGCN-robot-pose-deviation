@@ -1,3 +1,9 @@
+"""Graph 3: as graph 1, but joints are not connected to the target-pose node.
+
+The only difference from graph 1 is the removed joint-to-target edges, so
+comparing the two isolates what that connection contributes.
+"""
+
 import os
 import numpy as np
 
