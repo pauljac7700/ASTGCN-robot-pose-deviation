@@ -1,8 +1,13 @@
 # Hybrid MDH + ASTGCN pose error compensation for serial industrial robots
 
-Reference implementation for **"A graph-based hybrid position error compensation
-method for serial industrial robots"**, published in *Applied Soft Computing*
-(Elsevier, 2026).
+Code behind **"A graph-based hybrid position error compensation method for serial
+industrial robots"**, Yao, Jacobi, Shao and Kibireva, *Applied Soft Computing* 203
+(2026) 116099.
+
+This started as my master's thesis at Tsinghua University and grew afterwards as
+the work was extended toward publication, so it is a working research repository
+rather than a tidy artefact produced alongside the paper. The models, experiments
+and baselines are all here; the polish is honest about where it came from.
 
 Industrial robots are repeatable but not accurate: they return to the same place
 reliably, yet that place is not where the controller thinks it is. Geometric
@@ -19,17 +24,19 @@ This repository implements a two-stage method for the remainder:
    train an attention-based spatio-temporal graph convolutional network to
    predict and compensate it.
 
-![ASTGCN architecture](docs/astgcn-architecture.png)
+![Three-stage hybrid compensation framework](docs/method-overview.png)
+
+<sub>Figure 2 from the paper. © 2026 Elsevier B.V., reproduced by an author.</sub>
 
 ## Results
 
 Validated on two robots with different drive mechanisms and degrees of freedom,
 measured against a laser tracker.
 
-| Robot | DOF | Drive | Mean absolute position error, uncompensated | With hybrid compensation |
-|---|---|---|---|---|
-| Universal Robots UR5 | 6 | Gear | 2.5664 mm | **0.1549 mm** |
-| Barrett WAM | 7 | Cable | 17.7661 mm | **2.9178 mm** |
+| Robot | DOF | Drive | Uncompensated | Hybrid compensation | Reduction |
+|---|---|---|---|---|---|
+| Universal Robots UR5 | 6 | Gear | 2.566 mm | **0.155 mm** | 94.0% |
+| Barrett WAM | 7 | Cable | 17.766 mm | **2.918 mm** | 83.6% |
 
 The UR5 result approaches that robot's repeatability specification of 0.1 mm,
 which is the practical floor for this kind of compensation. The method was
@@ -43,7 +50,9 @@ Per-axis test metrics for the run shown above are in
 collects every model side by side.
 
 - Paper: [doi.org/10.1016/j.asoc.2026.116099](https://doi.org/10.1016/j.asoc.2026.116099)
-- Datasets: [pauljac7700/serial_robots_datasets](https://github.com/pauljac7700/serial_robots_datasets)
+- Datasets: [pauljac7700/serial_robots_datasets](https://github.com/pauljac7700/serial_robots_datasets),
+  released as promised in the paper to support reproducibility. See [data/README.md](data/README.md)
+  for what is public and what is not.
 
 ## Repository layout
 
@@ -59,7 +68,7 @@ collects every model side by side.
 | `lib/` | Importable helpers: graph Laplacians, masked metrics, config checks |
 | `tools/` | Standalone scripts, run directly and imported by nothing: data cleaning, run comparison, figures |
 | `config_*.yaml` | One config per model |
-| `data/` | UR5 (3D) and Barrett WAM (6D) datasets, raw and cleaned |
+| `data/` | Graph topology, acquisition scripts, and where to get the datasets |
 | `results/` | Evaluation output, per-model metrics and plots |
 | `docs/` | Figures used in this README |
 
@@ -163,13 +172,20 @@ the topology is doing real work.
 If you use this code or the datasets, please cite the paper:
 
 ```bibtex
-@article{jacobi2026graph,
+@article{yao2026graph,
   title   = {A graph-based hybrid position error compensation method for serial industrial robots},
+  author  = {Yao, Ming and Jacobi, Paul and Shao, Zhufeng and Kibireva, Anna},
   journal = {Applied Soft Computing},
+  volume  = {203},
+  pages   = {116099},
   year    = {2026},
   doi     = {10.1016/j.asoc.2026.116099}
 }
 ```
+
+Ming Yao and Paul Jacobi contributed equally and are co-first authors. The paper
+itself is under Elsevier copyright and is not redistributed here; the DOI above
+is the canonical link.
 
 The ASTGCN architecture this work builds on is from Guo et al., *Attention Based
 Spatial-Temporal Graph Convolutional Networks for Traffic Flow Forecasting*,
@@ -177,8 +193,10 @@ AAAI 2019.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The datasets are released under the terms stated in
-the [dataset repository](https://github.com/pauljac7700/serial_robots_datasets).
+The code in this repository is MIT licensed, see [LICENSE](LICENSE). The datasets
+carry the terms stated in the
+[dataset repository](https://github.com/pauljac7700/serial_robots_datasets). The
+paper is © 2026 Elsevier B.V. and is not included here.
 
 ## Contact
 
