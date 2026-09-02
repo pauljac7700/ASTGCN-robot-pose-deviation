@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Training artefacts
+runs/
+tensorboard/
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+
+# Fitted scalers and generated sequences
+*.joblib
+*.pkl
+
+# OS
+.DS_Store
