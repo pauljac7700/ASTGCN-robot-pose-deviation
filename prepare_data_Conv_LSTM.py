@@ -1,5 +1,13 @@
+"""Reshape the prepared ASTGCN splits into the grid layout the ConvLSTM expects.
+
+Must run after ``prep_data_multi.py``: it consumes that script's output rather than
+the raw CSVs. It also diffs its own config against ``config_ASTGCN.yaml`` and warns
+on divergence, so the baseline is trained on the same data as the main model.
+"""
+
 # prepare_data_Conv_LSTM.py
 
+import argparse
 import numpy as np
 import yaml
 import os
@@ -60,11 +68,18 @@ def prepare_data(config, config_ASTGCN):
 
 
 if __name__ == "__main__":
-    # Load configuration
-    with open('config_Conv_LSTM.yaml', 'r') as f:
-        config = yaml.safe_load(f)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_Conv_LSTM.yaml",
+                        help="Path to this model's YAML configuration (default: %(default)s).")
+    parser.add_argument("--astgcn-config", default="config_ASTGCN.yaml",
+                        help="ASTGCN configuration to check against, so this run stays "
+                             "comparable with the main model (default: %(default)s).")
+    args = parser.parse_args()
 
-    with open('config_ASTGCN.yaml', 'r') as f:
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+    with open(args.astgcn_config) as f:
         config_ASTGCN = yaml.safe_load(f)
     compare_yaml_configs(config, config_ASTGCN)
 

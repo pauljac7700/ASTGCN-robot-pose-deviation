@@ -1,3 +1,9 @@
+"""Multi-layer perceptron baseline, multi-target.
+
+Takes the same features as the ASTGCN but discards the graph structure, so the
+difference between the two measures what modelling the kinematic chain is worth.
+"""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt

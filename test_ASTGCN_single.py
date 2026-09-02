@@ -1,5 +1,11 @@
+"""Evaluate a trained single-target ASTGCN on the held-out test split.
+
+Writes per-axis metrics and a comparison plot into ``results/results_single/``.
+"""
+
 # test_ASTGCN_single.py
 
+import argparse
 import os
 import torch
 import numpy as np
@@ -216,8 +222,12 @@ def test_model(config):
     print(f"Predictions and actual values saved to {excel_path}")
 
 if __name__ == "__main__":
-    # Load configuration
-    with open('config_ASTGCN.yaml') as f:
-        config = yaml.safe_load(f)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
 
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
     test_model(config)

@@ -1,3 +1,13 @@
+"""Train the multi-target ASTGCN that predicts residual robot pose error.
+
+This is the main model of the paper and the second stage of the hybrid method: it
+learns the non-geometric error that remains after MDH geometric calibration, over a
+graph whose structure follows the robot's serial kinematic chain. Logs to
+TensorBoard and keeps the checkpoint with the best validation loss under early
+stopping.
+"""
+
+import argparse
 import os
 import torch
 import torch.nn as nn
@@ -231,6 +241,12 @@ def train_model(config):
     writer.close()
 
 if __name__ == "__main__":
-    with open('config_ASTGCN.yaml') as f:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
         config = yaml.safe_load(f)
     train_model(config)

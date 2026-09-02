@@ -1,3 +1,9 @@
+"""VARX statistical baseline.
+
+Fits a vector autoregression with exogenous inputs to the residual series, giving a
+classical time-series reference point alongside the neural models.
+"""
+
 import os
 import numpy as np
 import pandas as pd

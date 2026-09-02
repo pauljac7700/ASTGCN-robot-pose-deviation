@@ -1,3 +1,8 @@
+"""Multi-layer perceptron baseline, single-target.
+
+The single-target counterpart of ``run_MLP_multi.py``.
+"""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt

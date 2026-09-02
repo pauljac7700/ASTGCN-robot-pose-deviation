@@ -1,5 +1,12 @@
+"""Train the single-target ASTGCN variant.
+
+Carries the residual on a single node instead of spreading it across several, which
+is the configuration used for the 3D UR5 experiments.
+"""
+
 # train_ASTGCN_single.py
 
+import argparse
 import os
 import torch
 import torch.nn as nn
@@ -190,8 +197,12 @@ def train_model(config):
     writer.close()
 
 if __name__ == "__main__":
-    # Load configuration
-    with open('config_ASTGCN.yaml') as f:
-        config = yaml.safe_load(f)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
 
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
     train_model(config)

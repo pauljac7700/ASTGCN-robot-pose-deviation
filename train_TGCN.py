@@ -1,3 +1,11 @@
+"""Train the TGCN baseline on the prepared ASTGCN splits.
+
+TGCN shares the graph structure with the ASTGCN but has no attention mechanism, so
+it isolates the contribution of attention. Diffs its config against
+``config_ASTGCN.yaml`` to keep the two runs comparable.
+"""
+
+import argparse
 import os
 import torch
 import torch.nn as nn
@@ -191,10 +199,18 @@ def train_model(config):
 
 
 if __name__ == "__main__":
-    # Load configuration
-    with open('config_TGCN.yaml') as f:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_TGCN.yaml",
+                        help="Path to this model's YAML configuration (default: %(default)s).")
+    parser.add_argument("--astgcn-config", default="config_ASTGCN.yaml",
+                        help="ASTGCN configuration to check against, so this run stays "
+                             "comparable with the main model (default: %(default)s).")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
         config = yaml.safe_load(f)
-    with open('config_ASTGCN.yaml', 'r') as f:
+    with open(args.astgcn_config) as f:
         config_ASTGCN = yaml.safe_load(f)
     compare_yaml_configs(config, config_ASTGCN)
 

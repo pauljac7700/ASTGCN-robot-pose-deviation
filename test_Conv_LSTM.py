@@ -1,5 +1,12 @@
+"""Evaluate the ConvLSTM baseline on the held-out test split.
+
+Reported alongside the ASTGCN results to show what a purely convolutional
+recurrent model achieves on the same data, without the graph structure.
+"""
+
 # test_Conv_LSTM.py
 
+import argparse
 import os
 import torch
 import numpy as np
@@ -331,9 +338,12 @@ def test_model(config):
     print(f"Euclidean distance plot saved to {euclidean_plot_path}")
 
 if __name__ == "__main__":
-    # Load configuration
-    with open('config_Conv_LSTM.yaml') as f:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_Conv_LSTM.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
         config = yaml.safe_load(f)
-    
-    # Start testing
     test_model(config)

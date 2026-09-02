@@ -1,5 +1,12 @@
+"""Train the ConvLSTM baseline on the prepared ASTGCN splits.
+
+Requires ``prepare_data_Conv_LSTM.py`` to have run first. Serves as the
+no-graph baseline in the comparison.
+"""
+
 # train_Conv_LSTM.py
 
+import argparse
 import os
 import torch
 import torch.nn as nn
@@ -303,8 +310,11 @@ def train_model(config):
 
 
 if __name__ == "__main__":
-    # Load configuration
-    config = load_config('config_Conv_LSTM.yaml')
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_Conv_LSTM.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
 
-    # Start training
+    config = load_config(args.config)
     train_model(config)

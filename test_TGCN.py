@@ -1,5 +1,12 @@
+"""Evaluate the TGCN baseline on the held-out test split.
+
+TGCN uses the same graph as the ASTGCN but without the attention mechanism, so the
+gap between the two isolates what attention contributes.
+"""
+
 # test_TGCN.py
 
+import argparse
 import os
 import torch
 import numpy as np
@@ -322,7 +329,12 @@ def test_model(config):
     print(f"Euclidean distance plot saved to {euclidean_plot_path}")
     
 if __name__ == "__main__":
-    with open('config_TGCN.yaml') as f:
-        config = yaml.safe_load(f)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_TGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
 
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
     test_model(config)

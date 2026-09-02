@@ -1,3 +1,11 @@
+"""Train an ablation variant of the multi-target ASTGCN.
+
+The variant is chosen by ``model_name`` in the config: no attention, no spatial
+convolution or no temporal convolution. Everything else matches
+``train_ASTGCN_multi.py`` so the comparison is like for like.
+"""
+
+import argparse
 import os
 import torch
 import torch.nn as nn
@@ -260,6 +268,12 @@ def train_model(config):
     writer.close()
 
 if __name__ == "__main__":
-    with open('config_ASTGCN.yaml') as f:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
         config = yaml.safe_load(f)
     train_model(config)

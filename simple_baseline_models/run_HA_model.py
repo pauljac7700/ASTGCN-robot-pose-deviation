@@ -1,3 +1,10 @@
+"""Historical average baseline.
+
+Predicts each residual as the mean of the training split. This is the floor any
+learned model has to beat, and it is reported so that the improvements elsewhere
+can be read against something trivial.
+"""
+
 import os
 import numpy as np
 import pandas as pd

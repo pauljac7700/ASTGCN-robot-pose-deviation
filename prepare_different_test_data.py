@@ -1,3 +1,11 @@
+"""Build an additional held-out test set drawn from a different pose distribution.
+
+Models are trained on grid poses and tested on random poses, so that the reported
+error is measured on poses the network has never seen. This script prepares that
+second distribution.
+"""
+
+import argparse
 import numpy as np
 import pandas as pd
 import joblib
@@ -115,6 +123,12 @@ def prepare_different_test_data(config):
     print(f"Big test dataset saved to {output_file}")
 
 if __name__ == "__main__":
-    with open('config_ASTGCN.yaml') as f:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
         config = yaml.safe_load(f)
     prepare_different_test_data(config)

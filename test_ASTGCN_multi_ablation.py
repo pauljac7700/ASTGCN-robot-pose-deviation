@@ -1,3 +1,11 @@
+"""Evaluate an ablation variant of the multi-target ASTGCN.
+
+Selects the variant named by ``model_name`` in the config, one of no attention, no
+spatial convolution or no temporal convolution, and reports the same metrics as the
+full model so the contribution of each component can be read off directly.
+"""
+
+import argparse
 import os
 import torch
 import numpy as np
@@ -379,6 +387,12 @@ def test_model(config):
     print(f"Euclidean distance plot saved to {euclidean_plot_path}")
     
 if __name__ == "__main__":
-    with open('config_ASTGCN.yaml') as f:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
         config = yaml.safe_load(f)
     test_model(config)

@@ -1,5 +1,13 @@
+"""Build train, validation and test tensors for the single-target ASTGCN.
+
+Same pipeline as ``prep_data_multi.py``, but the residual is carried by one node
+rather than being spread across several, which is the configuration used for the
+3D UR5 experiments.
+"""
+
 # prep_data_multi_without_target_input.py
 
+import argparse
 import numpy as np
 import pandas as pd
 import joblib
@@ -193,8 +201,12 @@ def prepare_data(config):
     print("Datasets saved to disk.")
 
 if __name__ == "__main__":
-    # Load configuration
-    with open('config_ASTGCN.yaml') as f:
-        config = yaml.safe_load(f)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
 
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
     prepare_data(config)

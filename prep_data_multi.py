@@ -1,5 +1,13 @@
+"""Build train, validation and test tensors for the multi-target ASTGCN.
+
+Reads the robot pose CSVs named in the config, constructs the graph sequences over
+the kinematic chain, fits the feature scalers on the training split only, and writes
+the arrays and scalers under ``data/``. Run this before any training script.
+"""
+
 # prep_data_multi.py
 
+import argparse
 import numpy as np
 import pandas as pd
 import joblib
@@ -127,8 +135,12 @@ def prepare_data(config):
     print("Datasets saved to disk.")
 
 if __name__ == "__main__":
-    # Load configuration
-    with open('config_ASTGCN.yaml') as f:
-        config = yaml.safe_load(f)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
 
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
     prepare_data(config)

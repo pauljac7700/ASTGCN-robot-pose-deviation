@@ -19,6 +19,8 @@ This repository implements a two-stage method for the remainder:
    train an attention-based spatio-temporal graph convolutional network to
    predict and compensate it.
 
+![ASTGCN architecture](docs/astgcn-architecture.png)
+
 ## Results
 
 Validated on two robots with different drive mechanisms and degrees of freedom,
@@ -33,6 +35,12 @@ The UR5 result approaches that robot's repeatability specification of 0.1 mm,
 which is the practical floor for this kind of compensation. The method was
 compared against three baselines: uncalibrated, MDH calibration alone, and
 ASTGCN compensation alone.
+
+![Predicted against measured residual error](docs/results-multi.png)
+
+Per-axis test metrics for the run shown above are in
+`results/results_multi/`, and `results/all_models_metrics_compared.xlsx`
+collects every model side by side.
 
 - Paper: [doi.org/10.1016/j.asoc.2026.116099](https://doi.org/10.1016/j.asoc.2026.116099)
 - Datasets: [pauljac7700/serial_robots_datasets](https://github.com/pauljac7700/serial_robots_datasets)
@@ -50,7 +58,8 @@ ASTGCN compensation alone.
 | `lib/`, `model/` | Shared utilities and model definitions |
 | `config_*.yaml` | One config per model |
 | `data/` | UR5 (3D) and Barrett WAM (6D) datasets, raw and cleaned |
-| `results/` | Evaluation output |
+| `results/` | Evaluation output, per-model metrics and plots |
+| `docs/` | Figures used in this README |
 
 ## Setup
 
@@ -68,16 +77,16 @@ commented out in `requirements.txt`. Training and evaluation do not need them.
 
 ## Running
 
-Each script reads its YAML config from a fixed filename in the repository root,
-so **configuration is done by editing the YAML, not by passing arguments**.
-`train_ASTGCN_multi.py` reads `config_ASTGCN.yaml`, `train_TGCN.py` reads
-`config_TGCN.yaml`, and so on.
+Every entry point takes `--config` and defaults to the matching YAML in the
+repository root, so the short form below works from a fresh clone and
+`--config my_experiment.yaml` runs a variant without editing anything tracked.
+`--help` on any script prints what it does.
 
 Prepare the data, then train, then evaluate:
 
 ```bash
 python prep_data_multi.py          # writes preprocessed splits and scalers into data/
-python train_ASTGCN_multi.py       # reads config_ASTGCN.yaml
+python train_ASTGCN_multi.py       # defaults to config_ASTGCN.yaml
 python test_ASTGCN_multi.py
 ```
 
@@ -89,14 +98,14 @@ The ConvLSTM baseline needs one extra preprocessing pass, run **after**
 
 ```bash
 python prepare_data_Conv_LSTM.py
-python train_Conv_LSTM.py          # reads config_Conv_LSTM.yaml
+python train_Conv_LSTM.py          # defaults to config_Conv_LSTM.yaml
 python test_Conv_LSTM.py
 ```
 
 TGCN uses the ASTGCN splits directly:
 
 ```bash
-python train_TGCN.py               # reads config_TGCN.yaml
+python train_TGCN.py               # defaults to config_TGCN.yaml
 python test_TGCN.py
 ```
 
@@ -129,6 +138,8 @@ the reported errors are on poses the model has not seen.
 
 ## Graph variants
 
+![Graph topology over the kinematic chain](docs/graph-topology.png)
+
 The adjacency matrices in `build_graphs/` encode different ways of attaching the
 residual to the kinematic chain, and the evaluation scripts read the residual
 from different node indices as a result:
@@ -155,6 +166,11 @@ If you use this code or the datasets, please cite the paper:
 The ASTGCN architecture this work builds on is from Guo et al., *Attention Based
 Spatial-Temporal Graph Convolutional Networks for Traffic Flow Forecasting*,
 AAAI 2019.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The datasets are released under the terms stated in
+the [dataset repository](https://github.com/pauljac7700/serial_robots_datasets).
 
 ## Contact
 

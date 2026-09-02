@@ -1,3 +1,11 @@
+"""Evaluate a trained multi-target ASTGCN on the held-out test split.
+
+Loads the checkpoint with the best validation loss, predicts the residual pose
+error, inverts the scaling, and writes per-axis metrics and a comparison plot into
+``results/results_multi/``.
+"""
+
+import argparse
 import os
 import torch
 import numpy as np
@@ -353,6 +361,12 @@ def test_model(config):
     print(f"Euclidean distance plot saved to {euclidean_plot_path}")
 
 if __name__ == "__main__":
-    with open('config_ASTGCN.yaml') as f:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="config_ASTGCN.yaml",
+                        help="Path to the YAML configuration file (default: %(default)s).")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
         config = yaml.safe_load(f)
     test_model(config)
